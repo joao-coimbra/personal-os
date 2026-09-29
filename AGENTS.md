@@ -124,3 +124,26 @@ Biome's linter will catch most issues automatically. Focus your attention on:
 ---
 
 Most formatting and common issues are automatically fixed by Biome. Run `bun x ultracite fix` before committing to ensure compliance.
+
+## Cursor Cloud specific instructions
+
+- Use Bun `1.3.14` (`packageManager` in the root `package.json`). `bun install` also runs Varlock codegen for `apps/web`, `apps/server`, and `packages/db`.
+- Postgres is the Compose service in `packages/db/docker-compose.yml`: database `personal-os`, user `postgres`, password `password`, port `5432`. Start the Docker daemon before `bun run db:start`. In this environment, `.cursor/start.sh` does that, waits until the container is healthy, then applies the schema with `drizzle-kit push`.
+- Gitignored local env files are required for Varlock. `.cursor/install.sh` creates them when missing:
+  - `apps/server/.env`: `DATABASE_URL=postgresql://postgres:password@127.0.0.1:5432/personal-os`, `BETTER_AUTH_URL=http://localhost:3000/api/auth`, `CORS_ORIGIN=http://localhost:3001`, a generated `BETTER_AUTH_SECRET`, and `GOOGLE_GENERATIVE_AI_API_KEY` (uses the environment variable when set, otherwise a placeholder so the server can boot).
+  - `apps/web/.env`: `VITE_SERVER_URL=http://localhost:3000/api` so the browser calls `/api/rpc` and `/api/auth` on the API, not the Vite origin.
+- Web dev server: `http://localhost:3001` (`bun run dev:web`). API: `http://localhost:3000` (`bun run dev:server`). The home page health check calls `healthCheck` and should show Connected. Sign-up is at `/login`.
+- `turbo.json` uses the TUI. For non-interactive runs set `CI=1` or `TURBO_UI=stream`. `bun run db:push` is marked interactive; schema sync in cloud startup calls `drizzle-kit push` from `packages/db` instead.
+- `bun run check-types` is the type check. `bun run check` is Ultracite/Biome. There is no automated test suite.
+- The `/api/ai` route needs a real `GOOGLE_GENERATIVE_AI_API_KEY`. A placeholder is enough to boot the API and exercise auth plus the health check.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->
