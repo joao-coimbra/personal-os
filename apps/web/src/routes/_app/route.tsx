@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_app")({
     }
     const prefs = await client.preferences.get();
     if (!prefs?.onboardingCompletedAt) {
-      throw redirect({ to: "/onboarding" });
+      throw redirect({ search: {}, to: "/onboarding" });
     }
     return { session };
   },

@@ -89,7 +89,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton
                       isActive={pathname === item.to}
-                      render={<Link to={item.to} />}
+                      render={
+                        <Link
+                          search={item.to === "/integrations" ? {} : undefined}
+                          to={item.to}
+                        />
+                      }
                     >
                       <item.icon />
                       <span>{item.label}</span>

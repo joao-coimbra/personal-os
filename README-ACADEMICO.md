@@ -15,7 +15,11 @@
 | Desktop | Tauri 2 (dialog/fs para workspace local) |
 | Monorepo | Turborepo, Bun |
 
-Integrações externas: **Trello**, **Google Calendar**, **Notion** (tokens via UI de Integrações; OAuth completo documentado para evolução).
+Integrações externas: **Trello**, **Google Calendar**, **Notion** via botão **Conectar** (OAuth). Redirect URIs:
+
+- Google: `{SERVER}/api/integrations/oauth/google_calendar/callback`
+- Notion: `{SERVER}/api/integrations/oauth/notion/callback`
+- Trello: `{WEB}/oauth/trello`
 
 ## 3. Fluxo de uso (golden path)
 

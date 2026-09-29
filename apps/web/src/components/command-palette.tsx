@@ -46,7 +46,7 @@ export function CommandPalette() {
           <CommandItem
             onSelect={() => {
               setOpen(false);
-              navigate({ to: "/integrations" });
+              navigate({ search: {}, to: "/integrations" });
             }}
           >
             Integrações

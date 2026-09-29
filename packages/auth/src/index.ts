@@ -14,12 +14,16 @@ export function createAuth(
   database: Database,
   desktopOrigins: readonly string[] = []
 ) {
+  const isLocalHttp =
+    env.BETTER_AUTH_URL.startsWith("http://localhost") ||
+    env.BETTER_AUTH_URL.startsWith("http://127.0.0.1");
+
   return betterAuth({
     advanced: {
       defaultCookieAttributes: {
         httpOnly: true,
-        sameSite: "none",
-        secure: true,
+        sameSite: isLocalHttp ? "lax" : "none",
+        secure: !isLocalHttp,
       },
     },
     baseURL: env.BETTER_AUTH_URL,

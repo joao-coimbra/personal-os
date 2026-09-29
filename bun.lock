@@ -33,6 +33,7 @@
         "@personal-os/auth": "workspace:*",
         "@personal-os/capabilities": "workspace:*",
         "@personal-os/db": "workspace:*",
+        "@personal-os/integrations": "workspace:*",
         "ai": "catalog:",
         "better-auth": "catalog:",
         "drizzle-orm": "catalog:",

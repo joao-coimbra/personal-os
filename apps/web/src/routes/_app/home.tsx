@@ -1,15 +1,9 @@
 import { Badge } from "@personal-os/ui/components/badge";
 import { Button } from "@personal-os/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@personal-os/ui/components/card";
 import { Skeleton } from "@personal-os/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles } from "lucide-react";
+import { CalendarDays, ListTodo, Sparkles } from "lucide-react";
 
 import { useUiStore } from "@/stores/ui-store";
 import { orpc } from "@/utils/orpc";
@@ -25,123 +19,144 @@ function HomePage() {
   if (overview.isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2">
-        <Skeleton className="h-32" />
-        <Skeleton className="h-32" />
+        <Skeleton className="h-40 rounded-3xl" />
+        <Skeleton className="h-40 rounded-3xl" />
       </div>
     );
   }
 
   const data = overview.data;
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-semibold text-2xl tracking-tight">
-            Today&apos;s Overview
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Visão unificada de tarefas, compromissos e prioridades.
-          </p>
+    <div className="mx-auto flex max-w-5xl flex-col gap-8">
+      <section className="relative overflow-hidden rounded-3xl border bg-[radial-gradient(900px_circle_at_0%_0%,oklch(0.93_0.04_220),transparent),radial-gradient(700px_circle_at_100%_0%,oklch(0.94_0.05_150),transparent)] p-8">
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div className="max-w-xl space-y-2">
+            <p className="text-muted-foreground text-sm uppercase tracking-[0.18em]">
+              PersonalOS
+            </p>
+            <h1 className="font-semibold text-3xl tracking-tight md:text-4xl">
+              {greeting}. Foque no que importa.
+            </h1>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Tarefas, agenda e IA no mesmo espaço. Peça ao operador para
+              priorizar ou planejar o dia.
+            </p>
+          </div>
+          <Button onClick={() => setOperatorOpen(true)} size="lg" type="button">
+            <Sparkles className="size-4" />
+            Abrir operador
+          </Button>
         </div>
-        <Button onClick={() => setOperatorOpen(true)} type="button">
-          <Sparkles className="size-4" />
-          Perguntar ao AI
-        </Button>
-      </div>
+      </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Pendentes" value={data?.pendingCount ?? 0} />
-        <StatCard label="Atrasadas" value={data?.overdueCount ?? 0} />
-        <StatCard
-          label="Prioritárias"
-          value={data?.priorityTasks.length ?? 0}
-        />
-        <StatCard
-          label="Eventos (7d)"
-          value={data?.eventsUpcoming.length ?? 0}
-        />
-      </div>
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Pendentes" value={data?.pendingCount ?? 0} />
+        <Stat label="Atrasadas" value={data?.overdueCount ?? 0} />
+        <Stat label="Prioritárias" value={data?.priorityTasks.length ?? 0} />
+        <Stat label="Eventos" value={data?.eventsUpcoming.length ?? 0} />
+      </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Priority Tasks</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {data?.priorityTasks.length ? (
-              data.priorityTasks.map((t) => (
-                <div
-                  className="flex items-center justify-between gap-2 text-sm"
-                  key={t.id}
+      <section className="grid gap-4 md:grid-cols-2">
+        <Panel
+          action={
+            <Button render={<Link to="/tasks" />} size="sm" variant="ghost">
+              Ver tarefas
+            </Button>
+          }
+          icon={ListTodo}
+          title="Prioridade (Eisenhower)"
+        >
+          {(data?.priorityTasks.length ?? 0) === 0 ? (
+            <Empty hint="Conecte o Trello e peça ao AI para classificar." />
+          ) : (
+            <ul className="space-y-2">
+              {data?.priorityTasks.slice(0, 6).map((task) => (
+                <li
+                  className="flex items-center justify-between gap-2 rounded-xl border bg-background/70 px-3 py-2 text-sm"
+                  key={task.id}
                 >
-                  <span>{t.name}</span>
-                  <Badge variant="secondary">{t.quadrant}</Badge>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                Conecte o Trello em Integrations.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Upcoming Events</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {data?.eventsUpcoming.length ? (
-              data.eventsUpcoming.map((e) => (
-                <div className="text-sm" key={e.id}>
-                  <p className="font-medium">{e.summary ?? "Event"}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {e.start.dateTime ?? e.start.date}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                Conecte o Google Calendar.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <span className="truncate">{task.name}</span>
+                  {task.quadrant ? (
+                    <Badge variant="secondary">{task.quadrant}</Badge>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Button
-            render={<Link to="/integrations" />}
-            size="sm"
-            variant="outline"
-          >
-            Integrations
-          </Button>
-          <Button render={<Link to="/tasks" />} size="sm" variant="outline">
-            Tasks
-          </Button>
-          <Button render={<Link to="/files" />} size="sm" variant="outline">
-            Files
-          </Button>
-        </CardContent>
-      </Card>
+        <Panel
+          action={
+            <Button render={<Link to="/calendar" />} size="sm" variant="ghost">
+              Ver agenda
+            </Button>
+          }
+          icon={CalendarDays}
+          title="Próximos eventos"
+        >
+          {(data?.eventsUpcoming.length ?? 0) === 0 ? (
+            <Empty hint="Conecte o Google Calendar para ver compromissos." />
+          ) : (
+            <ul className="space-y-2">
+              {data?.eventsUpcoming.slice(0, 6).map((event) => (
+                <li
+                  className="rounded-xl border bg-background/70 px-3 py-2 text-sm"
+                  key={event.id}
+                >
+                  <p className="font-medium">{event.summary ?? "Evento"}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {event.start.dateTime ?? event.start.date}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </section>
     </div>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {label}
-        </p>
-        <p className="font-semibold text-3xl tabular-nums">{value}</p>
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl border bg-card/80 px-4 py-4">
+      <p className="text-muted-foreground text-xs uppercase tracking-wide">
+        {label}
+      </p>
+      <p className="mt-1 font-semibold text-3xl tabular-nums">{value}</p>
+    </div>
   );
+}
+
+function Panel({
+  title,
+  icon: Icon,
+  action,
+  children,
+}: {
+  title: string;
+  icon: typeof ListTodo;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-3xl border bg-card/70 p-5">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 font-medium">
+          <Icon className="size-4" />
+          {title}
+        </div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Empty({ hint }: { hint: string }) {
+  return <p className="text-muted-foreground text-sm">{hint}</p>;
 }

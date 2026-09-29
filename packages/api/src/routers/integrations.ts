@@ -49,6 +49,24 @@ export const integrationsRouter = {
         );
       return { success: true };
     }),
+  getAuthorizeUrl: protectedProcedure
+    .input(
+      z.object({
+        provider: providerSchema,
+        returnTo: z.string().optional(),
+      })
+    )
+    .handler(({ input }) => {
+      const returnTo = input.returnTo?.startsWith("/")
+        ? input.returnTo
+        : "/integrations";
+      const base = process.env.BETTER_AUTH_URL
+        ? new URL(process.env.BETTER_AUTH_URL).origin
+        : "http://localhost:3000";
+      return {
+        url: `${base}/api/integrations/oauth/${input.provider}/start?returnTo=${encodeURIComponent(returnTo)}`,
+      };
+    }),
 
   list: protectedProcedure.handler(async ({ context }) =>
     context.db

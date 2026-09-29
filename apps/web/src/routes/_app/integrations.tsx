@@ -1,51 +1,78 @@
 import { Badge } from "@personal-os/ui/components/badge";
-import { Button } from "@personal-os/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@personal-os/ui/components/card";
-import { Input } from "@personal-os/ui/components/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { CalendarDays, Kanban, NotebookPen } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
+import { ConnectProviderCard } from "@/features/integrations/connect-provider-card";
 import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_app/integrations")({
   component: IntegrationsPage,
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { connected?: string; error?: string } => ({
+    connected:
+      typeof search.connected === "string" ? search.connected : undefined,
+    error: typeof search.error === "string" ? search.error : undefined,
+  }),
 });
 
 const apps = [
   {
+    accentClassName: "bg-[#0079BF]",
+    description: "Boards, cards e prioridades Eisenhower",
+    icon: Kanban,
     id: "trello" as const,
     name: "Trello",
-    description: "Tasks & project management",
   },
   {
+    accentClassName: "bg-[#4285F4]",
+    description: "Eventos e blocos de foco no calendário",
+    icon: CalendarDays,
     id: "google_calendar" as const,
     name: "Google Calendar",
-    description: "Calendar & time blocking",
   },
-  { id: "notion" as const, name: "Notion", description: "Notes & knowledge" },
+  {
+    accentClassName: "bg-[#111111]",
+    description: "Busca, leitura e notas no workspace",
+    icon: NotebookPen,
+    id: "notion" as const,
+    name: "Notion",
+  },
 ];
 
-const aiClients = ["Claude", "Cursor", "Gemini"];
+const aiClients = [
+  {
+    description:
+      "Adicione a URL MCP do PersonalOS nas configurações do Claude.",
+    name: "Claude",
+  },
+  {
+    description: "Configure o servidor MCP em Cursor Settings → MCP.",
+    name: "Cursor",
+  },
+  {
+    description: "Use o endpoint MCP com token pessoal quando disponível.",
+    name: "Gemini",
+  },
+];
 
 function IntegrationsPage() {
   const list = useQuery(orpc.integrations.list.queryOptions());
   const queryClient = useQueryClient();
-  const [tokens, setTokens] = useState<Record<string, string>>({});
+  const search = Route.useSearch();
 
-  const connect = useMutation({
-    mutationFn: (input: {
-      provider: "trello" | "google_calendar" | "notion";
-      token: string;
-    }) => client.integrations.connectToken(input),
-    onSuccess: () => queryClient.invalidateQueries(),
-  });
+  useEffect(() => {
+    if (search.connected) {
+      toast.success(`${search.connected.replace("_", " ")} conectado`);
+      void queryClient.invalidateQueries();
+    }
+    if (search.error) {
+      toast.error(search.error);
+    }
+  }, [queryClient, search.connected, search.error]);
 
   const disconnect = useMutation({
     mutationFn: (provider: "trello" | "google_calendar" | "notion") =>
@@ -57,82 +84,56 @@ function IntegrationsPage() {
     list.data?.find((i) => i.provider === provider)?.status ?? "disconnected";
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8">
-      <div>
-        <h1 className="font-semibold text-2xl">Integrations</h1>
-        <p className="text-muted-foreground text-sm">
-          Apps & Services vs AI Clients
+    <div className="mx-auto flex max-w-3xl flex-col gap-10">
+      <div className="space-y-2">
+        <h1 className="font-semibold text-3xl tracking-tight">Integrações</h1>
+        <p className="max-w-xl text-muted-foreground text-sm leading-relaxed">
+          Conecte com um clique via OAuth. O operador de IA só age nas contas
+          autorizadas.
         </p>
       </div>
-      <section className="space-y-3">
-        <h2 className="font-medium text-sm uppercase tracking-wide">
+
+      <section className="space-y-4">
+        <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
           Apps & Services
         </h2>
         {apps.map((app) => (
-          <Card key={app.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-base">
-                {app.name}
-                <Badge
-                  variant={
-                    statusFor(app.id) === "connected" ? "default" : "secondary"
-                  }
-                >
-                  {statusFor(app.id)}
-                </Badge>
-              </CardTitle>
-              <CardDescription>{app.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Input
-                className="max-w-md"
-                onChange={(e) =>
-                  setTokens((s) => ({ ...s, [app.id]: e.target.value }))
-                }
-                placeholder="Access token"
-                value={tokens[app.id] ?? ""}
-              />
-              <Button
-                disabled={!tokens[app.id] || connect.isPending}
-                onClick={() =>
-                  connect.mutate({
-                    provider: app.id,
-                    token: tokens[app.id] ?? "",
-                  })
-                }
-                type="button"
-              >
-                Connect
-              </Button>
-              <Button
-                onClick={() => disconnect.mutate(app.id)}
-                type="button"
-                variant="outline"
-              >
-                Disconnect
-              </Button>
-            </CardContent>
-          </Card>
+          <ConnectProviderCard
+            accentClassName={app.accentClassName}
+            description={app.description}
+            icon={app.icon}
+            isConnected={statusFor(app.id) === "connected"}
+            key={app.id}
+            name={app.name}
+            onDisconnect={() => disconnect.mutate(app.id)}
+            provider={app.id}
+            returnTo="/integrations"
+          />
         ))}
       </section>
-      <section className="space-y-3">
-        <h2 className="font-medium text-sm uppercase tracking-wide">
+
+      <section className="space-y-4">
+        <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
           AI Clients (MCP)
         </h2>
-        {aiClients.map((name) => (
-          <Card key={name}>
-            <CardHeader>
-              <CardTitle className="text-base">{name}</CardTitle>
-              <CardDescription>
-                Setup available — configure PersonalOS MCP URL after server
-                deploy.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Badge variant="outline">Configured</Badge>
-            </CardContent>
-          </Card>
-        ))}
+        <div className="grid gap-3">
+          {aiClients.map((clientMeta) => (
+            <div
+              className="rounded-2xl border bg-card/70 px-5 py-4"
+              key={clientMeta.name}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">{clientMeta.name}</p>
+                  <p className="text-muted-foreground text-sm">
+                    {clientMeta.description}
+                  </p>
+                </div>
+                <Badge variant="outline">Setup disponível</Badge>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );

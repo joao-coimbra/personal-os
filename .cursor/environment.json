@@ -1,0 +1,15 @@
+{
+  "name": "personal-os",
+  "install": "curl -fsSL https://bun.sh/install | bash && export PATH=\"$HOME/.bun/bin:$PATH\" && (command -v docker >/dev/null || curl -fsSL https://get.docker.com | sudo sh) && (sudo dockerd --host=unix:///var/run/docker.sock --iptables=false >/tmp/dockerd.log 2>&1 & sleep 2 || true) && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql postgresql-contrib >/dev/null && bun install",
+  "start": "export PATH=\"$HOME/.bun/bin:$PATH\" && bash scripts/ensure-postgres.sh && cd packages/db && DATABASE_URL=\"${DATABASE_URL:-postgresql://postgres:password@127.0.0.1:5432/personal-os}\" bun x drizzle-kit push --force",
+  "terminals": [
+    {
+      "name": "server",
+      "command": "export PATH=\"$HOME/.bun/bin:$PATH\" && bun run dev:server"
+    },
+    {
+      "name": "web",
+      "command": "export PATH=\"$HOME/.bun/bin:$PATH\" && bun run dev:web"
+    }
+  ]
+}

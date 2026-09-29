@@ -39,7 +39,7 @@
     "db:generate": "turbo run db:generate -F @personal-os/db --",
     "db:migrate": "turbo run db:migrate -F @personal-os/db --",
     "db:push": "turbo run db:push -F @personal-os/db --",
-    "db:start": "turbo run db:start -F @personal-os/db --",
+    "db:start": "bash scripts/ensure-postgres.sh",
     "db:stop": "turbo run db:stop -F @personal-os/db --",
     "db:studio": "turbo run db:studio -F @personal-os/db --",
     "db:watch": "turbo run db:watch -F @personal-os/db --",

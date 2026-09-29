@@ -15,6 +15,7 @@ import { createContext } from "./context";
 import { desktopOrigins, ENV } from "./env.server";
 import { registerMcpRoutes } from "./mcp/register";
 import { registerFileRoutes } from "./routes/files";
+import { registerOAuthRoutes } from "./routes/oauth";
 import { auth, db } from "./services";
 
 const baseCorsConfig = {
@@ -54,6 +55,7 @@ fastify.register(fastifyCors, baseCorsConfig);
 fastify.register(fastifyMultipart, { limits: { fileSize: 8 * 1024 * 1024 } });
 void registerFileRoutes(fastify);
 void registerMcpRoutes(fastify);
+void registerOAuthRoutes(fastify);
 
 fastify.register(async (rpcApp) => {
   // Fully utilize oRPC features by letting oRPC parse the request body.

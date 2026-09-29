@@ -37,6 +37,7 @@ export default function SignInForm({
           },
           onSuccess: () => {
             navigate({
+              search: {},
               to: "/onboarding",
             });
             toast.success("Sign in successful");
