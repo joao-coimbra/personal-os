@@ -159,7 +159,11 @@ function OnboardingPage() {
               />
               <ConnectProviderCard
                 accentClassName="bg-[#4285F4]"
-                description="Agenda e time blocking sustentável"
+                description={
+                  connected.has("google_calendar")
+                    ? "Já vinculado pelo login Google (Calendar)"
+                    : "Agenda e time blocking — também via login Google"
+                }
                 icon={CalendarDays}
                 isConnected={connected.has("google_calendar")}
                 name="Google Calendar"

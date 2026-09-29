@@ -15,9 +15,12 @@
 | Desktop | Tauri 2 (dialog/fs para workspace local) |
 | Monorepo | Turborepo, Bun |
 
-Integrações externas: **Trello**, **Google Calendar**, **Notion** via botão **Conectar** (OAuth). Redirect URIs:
+Integrações externas: **Trello**, **Google Calendar**, **Notion** via botão **Conectar** (OAuth).
 
-- Google: `{SERVER}/api/integrations/oauth/google_calendar/callback`
+**Login Google (Better Auth):** `{SERVER}/api/auth/callback/google` — pede escopo de Calendar e, ao concluir, sincroniza automaticamente `google_calendar` para o operador/dashboard.
+
+Redirects de Connect:
+- Google Calendar: `{SERVER}/api/integrations/oauth/google_calendar/callback`
 - Notion: `{SERVER}/api/integrations/oauth/notion/callback`
 - Trello: `{WEB}/oauth/trello`
 
