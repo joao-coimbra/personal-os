@@ -82,7 +82,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
         const message =
           error instanceof Error ? error.message : "OAuth is not configured";
         return reply.redirect(
-          `${ENV.CORS_ORIGIN}/integrations?error=${encodeURIComponent(message)}`
+          `${ENV.CORS_ORIGIN}${returnTo}?error=${encodeURIComponent(message)}`
         );
       }
     }
