@@ -28,6 +28,7 @@
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "fastify": "^5.12.3",
+    "resend": "^6.31.0",
     "unpdf": "^1.4.0",
     "varlock": "catalog:",
     "zod": "catalog:"

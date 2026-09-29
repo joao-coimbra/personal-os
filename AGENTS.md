@@ -125,6 +125,13 @@ Biome's linter will catch most issues automatically. Focus your attention on:
 
 Most formatting and common issues are automatically fixed by Biome. Run `bun x ultracite fix` before committing to ensure compliance.
 
+## Cloud Agent notes
+
+- Prefer system PostgreSQL via `bash scripts/ensure-postgres.sh` when Docker Compose cannot pull images in nested environments.
+- `bash scripts/cloud-materialize-env.sh` writes gitignored `.env` files from injected secrets (and generates local auth keys when missing).
+- Dev servers bind to `localhost` (IPv6 `::1`); use `http://localhost:3000` / `http://localhost:3001`, not `127.0.0.1`.
+- Canonical commands: `bun install`, `bun run db:start`, `bun run check-types`, `bun run dev:server`, `bun run dev:web`.
+
 <!-- BEGIN:turborepo-agent-rules -->
 
 # This is NOT the Turborepo you know

@@ -2,7 +2,9 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import type { Database } from "@personal-os/db";
 import * as schema from "@personal-os/db/schema/auth";
 import { betterAuth } from "better-auth";
+import { magicLink } from "better-auth/plugins/magic-link";
 
+import { sendMagicLinkEmail } from "./send-magic-link";
 import { syncGoogleCalendarIntegration } from "./sync-google-calendar";
 
 export type AuthConfig = {
@@ -14,6 +16,8 @@ export type AuthConfig = {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   INTEGRATION_ENCRYPTION_KEY?: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM_EMAIL?: string;
 };
 
 const GOOGLE_CALENDAR_SCOPES = [
@@ -85,8 +89,26 @@ export function createAuth(
         },
       },
     },
-    emailAndPassword: { enabled: true },
-    plugins: [],
+    emailAndPassword: { enabled: false },
+    plugins: [
+      magicLink({
+        expiresIn: 60 * 10,
+        sendMagicLink: async ({ email, url }) => {
+          if (!env.RESEND_API_KEY) {
+            throw new Error("RESEND_API_KEY is not configured.");
+          }
+          if (!env.RESEND_FROM_EMAIL) {
+            throw new Error("RESEND_FROM_EMAIL is not configured.");
+          }
+          await sendMagicLinkEmail({
+            email,
+            from: env.RESEND_FROM_EMAIL,
+            resendApiKey: env.RESEND_API_KEY,
+            url,
+          });
+        },
+      }),
+    ],
     secret: env.BETTER_AUTH_SECRET,
     socialProviders: {
       ...(googleEnabled
