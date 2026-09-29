@@ -1,0 +1,25 @@
+{
+  "name": "@personal-os/api",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "@orpc/client": "catalog:",
+    "@orpc/openapi": "catalog:",
+    "@orpc/server": "catalog:",
+    "@orpc/zod": "catalog:",
+    "@personal-os/auth": "workspace:*",
+    "@personal-os/db": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@personal-os/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

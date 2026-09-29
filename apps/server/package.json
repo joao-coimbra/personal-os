@@ -1,0 +1,37 @@
+{
+  "name": "server",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc -b ../../packages/api && tsdown",
+    "check-types": "tsc -b ../../packages/api && tsc --noEmit",
+    "compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.mjs",
+    "env:generate": "varlock codegen",
+    "auth:generate": "varlock run -- bun x auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
+  },
+  "dependencies": {
+    "@ai-sdk/devtools": "^1.0.15",
+    "@ai-sdk/google": "^4.0.64",
+    "@fastify/cors": "^11.3.0",
+    "@orpc/openapi": "catalog:",
+    "@orpc/server": "catalog:",
+    "@orpc/zod": "catalog:",
+    "@personal-os/api": "workspace:*",
+    "@personal-os/auth": "workspace:*",
+    "@personal-os/db": "workspace:*",
+    "ai": "catalog:",
+    "better-auth": "catalog:",
+    "fastify": "^5.12.3",
+    "varlock": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@personal-os/config": "workspace:*",
+    "@types/node": "catalog:",
+    "tsdown": "^0.23.0",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}
