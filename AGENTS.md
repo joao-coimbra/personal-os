@@ -134,7 +134,7 @@ Most formatting and common issues are automatically fixed by Biome. Run `bun x u
   - `apps/web/.env`: `VITE_SERVER_URL=http://localhost:3000/api` so the browser calls `/api/rpc` and `/api/auth` on the API, not the Vite origin.
 - Web dev server: `http://localhost:3001` (`bun run dev:web`). API: `http://localhost:3000` (`bun run dev:server`). The home page health check calls `healthCheck` and should show Connected. Sign-up is at `/login`.
 - `turbo.json` uses the TUI. For non-interactive runs set `CI=1` or `TURBO_UI=stream`. `bun run db:push` is marked interactive; schema sync in cloud startup calls `drizzle-kit push` from `packages/db` instead.
-- `bun run check-types` is the type check. `bun run check` is Ultracite/Biome. There is no automated test suite.
+- `bun run check-types` is the type check. `bun run check` is Ultracite/Biome. There is no automated test suite. `bun run build` currently fails in `apps/server` because `tsdown` imports the optional peer `unrun`, which is not installed. Dev and typecheck do not need that package.
 - The `/api/ai` route needs a real `GOOGLE_GENERATIVE_AI_API_KEY`. A placeholder is enough to boot the API and exercise auth plus the health check.
 
 <!-- BEGIN:turborepo-agent-rules -->
