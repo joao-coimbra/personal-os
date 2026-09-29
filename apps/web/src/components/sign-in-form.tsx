@@ -8,8 +8,8 @@ import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
 
-import { GoogleSignInButton } from "./google-sign-in-button";
 import Loader from "./loader";
+import { SocialSignInButtons } from "./social-sign-in";
 
 export default function SignInForm({
   onSwitchToSignUp,
@@ -62,13 +62,8 @@ export default function SignInForm({
     <div className="mx-auto mt-10 w-full max-w-md p-6">
       <h1 className="mb-6 text-center font-bold text-3xl">Welcome Back</h1>
 
-      <div className="mb-4 space-y-3">
-        <GoogleSignInButton callbackURL="/onboarding" />
-        <div className="flex items-center gap-3 text-muted-foreground text-xs">
-          <div className="h-px flex-1 bg-border" />
-          ou com email
-          <div className="h-px flex-1 bg-border" />
-        </div>
+      <div className="mb-4">
+        <SocialSignInButtons callbackURL="/onboarding" mode="signin" />
       </div>
 
       <form

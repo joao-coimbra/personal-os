@@ -9,6 +9,8 @@ export type AuthConfig = {
   BETTER_AUTH_URL: string;
   BETTER_AUTH_SECRET: string;
   CORS_ORIGIN: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   INTEGRATION_ENCRYPTION_KEY?: string;
@@ -33,12 +35,20 @@ export function createAuth(
   const googleEnabled = Boolean(
     env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
   );
+  const githubEnabled = Boolean(
+    env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
+  );
+
+  const trustedProviders = [
+    ...(googleEnabled ? (["google"] as const) : []),
+    ...(githubEnabled ? (["github"] as const) : []),
+  ];
 
   return betterAuth({
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: ["google"],
+        trustedProviders,
       },
     },
     advanced: {
@@ -78,17 +88,27 @@ export function createAuth(
     emailAndPassword: { enabled: true },
     plugins: [],
     secret: env.BETTER_AUTH_SECRET,
-    socialProviders: googleEnabled
-      ? {
-          google: {
-            accessType: "offline",
-            clientId: env.GOOGLE_CLIENT_ID as string,
-            clientSecret: env.GOOGLE_CLIENT_SECRET as string,
-            prompt: "select_account consent",
-            scope: [...GOOGLE_CALENDAR_SCOPES],
-          },
-        }
-      : {},
+    socialProviders: {
+      ...(googleEnabled
+        ? {
+            google: {
+              accessType: "offline",
+              clientId: env.GOOGLE_CLIENT_ID as string,
+              clientSecret: env.GOOGLE_CLIENT_SECRET as string,
+              prompt: "select_account consent",
+              scope: [...GOOGLE_CALENDAR_SCOPES],
+            },
+          }
+        : {}),
+      ...(githubEnabled
+        ? {
+            github: {
+              clientId: env.GITHUB_CLIENT_ID as string,
+              clientSecret: env.GITHUB_CLIENT_SECRET as string,
+            },
+          }
+        : {}),
+    },
     trustedOrigins: [env.CORS_ORIGIN, ...desktopOrigins],
   });
 }

@@ -17,7 +17,9 @@
 
 Integrações externas: **Trello**, **Google Calendar**, **Notion** via botão **Conectar** (OAuth).
 
-**Login Google (Better Auth):** `{SERVER}/api/auth/callback/google` — pede escopo de Calendar e, ao concluir, sincroniza automaticamente `google_calendar` para o operador/dashboard.
+**Login social (Better Auth):**
+- Google: `{SERVER}/api/auth/callback/google` — pede escopo de Calendar e sincroniza `google_calendar` automaticamente.
+- GitHub: `{SERVER}/api/auth/callback/github` — autenticação apenas (não liga Trello/Calendar/Notion).
 
 Redirects de Connect:
 - Google Calendar: `{SERVER}/api/integrations/oauth/google_calendar/callback`
