@@ -1,0 +1,24 @@
+{
+  "name": "@personal-os/capabilities",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "@personal-os/db": "workspace:*",
+    "@personal-os/integrations": "workspace:*",
+    "ai": "catalog:",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@personal-os/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

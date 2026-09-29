@@ -15,7 +15,11 @@
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
     "@personal-os/auth": "workspace:*",
+    "@personal-os/capabilities": "workspace:*",
     "@personal-os/db": "workspace:*",
+    "@personal-os/integrations": "workspace:*",
+    "date-fns": "^4.1.0",
+    "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

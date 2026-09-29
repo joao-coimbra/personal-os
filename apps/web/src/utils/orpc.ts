@@ -53,7 +53,9 @@ function getServerUrl(url: string) {
       ? (processEnv?.VERCEL_PROJECT_PRODUCTION_URL ?? processEnv?.VERCEL_URL)
       : (processEnv?.VERCEL_URL ?? processEnv?.VERCEL_PROJECT_PRODUCTION_URL);
   if (vercelUrl) {
-    const origin = vercelUrl.startsWith("http") ? vercelUrl : `https://${vercelUrl}`;
+    const origin = vercelUrl.startsWith("http")
+      ? vercelUrl
+      : `https://${vercelUrl}`;
     return `${origin}${normalized}`;
   }
 
@@ -61,13 +63,13 @@ function getServerUrl(url: string) {
 }
 
 export const link = new RPCLink({
-  url: `${getServerUrl(ENV.VITE_SERVER_URL)}/rpc`,
   fetch(url, options) {
     return fetch(url, {
       ...options,
       credentials: "include",
     });
   },
+  url: `${getServerUrl(ENV.VITE_SERVER_URL)}/rpc`,
 });
 
 export const client: AppRouterClient = createORPCClient(link);

@@ -1,6 +1,7 @@
 {
   "name": "personal-os",
   "private": true,
+  "type": "module",
   "workspaces": {
     "packages": [
       "apps/*",
@@ -29,33 +30,32 @@
       "drizzle-orm": "1.0.0-rc.4"
     }
   },
-  "type": "module",
   "scripts": {
-    "dev": "turbo run dev",
+    "auth:generate": "cd apps/server && bun run auth:generate",
     "build": "turbo run build",
+    "check": "ultracite check",
     "check-types": "turbo run check-types",
-    "dev:web": "turbo run dev -F web --",
-    "dev:server": "turbo run dev -F server --",
-    "db:push": "turbo run db:push -F @personal-os/db --",
-    "db:studio": "turbo run db:studio -F @personal-os/db --",
+    "db:down": "turbo run db:down -F @personal-os/db --",
     "db:generate": "turbo run db:generate -F @personal-os/db --",
     "db:migrate": "turbo run db:migrate -F @personal-os/db --",
+    "db:push": "turbo run db:push -F @personal-os/db --",
     "db:start": "turbo run db:start -F @personal-os/db --",
-    "db:watch": "turbo run db:watch -F @personal-os/db --",
     "db:stop": "turbo run db:stop -F @personal-os/db --",
-    "db:down": "turbo run db:down -F @personal-os/db --",
+    "db:studio": "turbo run db:studio -F @personal-os/db --",
+    "db:watch": "turbo run db:watch -F @personal-os/db --",
+    "deploy": "bunx vercel deploy",
+    "deploy:check": "bunx vercel deploy --dry",
+    "deploy:prod": "bunx vercel deploy --prod",
     "deploy:setup": "bunx vercel link",
+    "dev": "turbo run dev",
+    "dev:server": "turbo run dev -F server --",
     "dev:vercel": "bunx vercel dev -L",
+    "dev:web": "turbo run dev -F web --",
+    "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
     "env:preview": "tsx scripts/sync-vercel-env.ts preview",
     "env:production": "tsx scripts/sync-vercel-env.ts production",
-    "deploy": "bunx vercel deploy",
-    "deploy:prod": "bunx vercel deploy --prod",
-    "deploy:check": "bunx vercel deploy --dry",
-    "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
-    "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
-    "auth:generate": "cd apps/server && bun run auth:generate",
-    "check": "ultracite check",
-    "fix": "ultracite fix"
+    "fix": "ultracite fix",
+    "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/"
   },
   "dependencies": {
     "zod": "catalog:"
