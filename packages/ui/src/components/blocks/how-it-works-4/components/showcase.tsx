@@ -139,7 +139,7 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
           <div
             className={cn(
               "relative overflow-clip",
-              compact ? "aspect-[2/1] max-h-56" : "aspect-[20/9]"
+              compact ? "aspect-[16/9] max-h-60" : "aspect-[20/9]"
             )}
           >
             <div
