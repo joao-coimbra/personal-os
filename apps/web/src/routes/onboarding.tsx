@@ -1,5 +1,6 @@
 import { Onboarding } from "@personal-os/ui/components/blocks/onboarding-2/components/onboarding";
 import { ItemGroup } from "@personal-os/ui/components/item";
+import { Gmail } from "@personal-os/ui/components/svgs/gmail";
 import { GoogleCalendar } from "@personal-os/ui/components/svgs/googleCalendar";
 import { Notion } from "@personal-os/ui/components/svgs/notion";
 import { Trello } from "@personal-os/ui/components/svgs/trello";
@@ -44,6 +45,12 @@ const onboardingProviders = [
     id: "google_calendar" as const,
     logo: <GoogleCalendar aria-hidden="true" />,
     name: "Google Calendar",
+  },
+  {
+    description: "Lê e organiza e-mails para ajudar na triagem de atividades",
+    id: "gmail" as const,
+    logo: <Gmail aria-hidden="true" />,
+    name: "Gmail",
   },
   {
     description: "Notas e base de conhecimento para o operador",

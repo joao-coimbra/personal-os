@@ -1,4 +1,5 @@
 import { Badge } from "@personal-os/ui/components/badge";
+import { Gmail } from "@personal-os/ui/components/svgs/gmail";
 import { GoogleCalendar } from "@personal-os/ui/components/svgs/googleCalendar";
 import { Notion } from "@personal-os/ui/components/svgs/notion";
 import { Trello } from "@personal-os/ui/components/svgs/trello";
@@ -34,6 +35,12 @@ const apps = [
     id: "google_calendar" as const,
     logo: <GoogleCalendar aria-hidden="true" />,
     name: "Google Calendar",
+  },
+  {
+    description: "Lê e organiza e-mails para ajudar na triagem de atividades",
+    id: "gmail" as const,
+    logo: <Gmail aria-hidden="true" />,
+    name: "Gmail",
   },
   {
     description: "Busca, leitura e notas no workspace",

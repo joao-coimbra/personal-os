@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type OAuthProvider = "trello" | "google_calendar" | "notion";
+export type OAuthProvider = "trello" | "google_calendar" | "gmail" | "notion";
 
 export interface OAuthEnv {
   appOrigin: string;
@@ -20,10 +20,23 @@ export interface OAuthStatePayload {
   userId: string;
 }
 
-const GOOGLE_SCOPES = [
+/** Calendar events only — same scopes used when Google login syncs calendar. */
+const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
+
+/**
+ * Gmail readonly for triage/organization intents.
+ * gmail.readonly covers message + label reads without send/delete.
+ * Label apply / modify deferred until explicit confirmation UX exists.
+ */
+const GMAIL_SCOPES = [
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/userinfo.email",
+].join(" ");
+
+const GOOGLE_PROVIDERS = new Set<OAuthProvider>(["google_calendar", "gmail"]);
 
 function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
@@ -65,13 +78,20 @@ export function callbackUrl(
   return `${serverOrigin}/api/integrations/oauth/${provider}/callback`;
 }
 
+function googleScopesFor(provider: OAuthProvider): string {
+  if (provider === "gmail") {
+    return GMAIL_SCOPES;
+  }
+  return GOOGLE_CALENDAR_SCOPES;
+}
+
 export function buildAuthorizeUrl(
   provider: OAuthProvider,
   env: OAuthEnv,
   state: string,
   returnTo = "/integrations"
 ): string {
-  if (provider === "google_calendar") {
+  if (GOOGLE_PROVIDERS.has(provider)) {
     if (!env.googleClientId) {
       throw new Error("GOOGLE_CLIENT_ID is not configured.");
     }
@@ -82,7 +102,7 @@ export function buildAuthorizeUrl(
       prompt: "consent",
       redirect_uri: callbackUrl(env.serverOrigin, provider),
       response_type: "code",
-      scope: GOOGLE_SCOPES,
+      scope: googleScopesFor(provider),
       state,
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
@@ -121,7 +141,8 @@ export function buildAuthorizeUrl(
 
 export async function exchangeGoogleCode(
   code: string,
-  env: OAuthEnv
+  env: OAuthEnv,
+  provider: "google_calendar" | "gmail" = "google_calendar"
 ): Promise<{
   accessToken: string;
   refreshToken?: string;
@@ -137,7 +158,7 @@ export async function exchangeGoogleCode(
       client_secret: env.googleClientSecret,
       code,
       grant_type: "authorization_code",
-      redirect_uri: callbackUrl(env.serverOrigin, "google_calendar"),
+      redirect_uri: callbackUrl(env.serverOrigin, provider),
     }),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     method: "POST",

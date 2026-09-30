@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { protectedProcedure } from "../index";
 
-const providerSchema = z.enum(["trello", "google_calendar", "notion"]);
+const providerSchema = z.enum(["trello", "google_calendar", "gmail", "notion"]);
 
 export const integrationsRouter = {
   connectToken: protectedProcedure

@@ -14,6 +14,7 @@ import { user } from "./auth";
 export const integrationProviderEnum = pgEnum("integration_provider", [
   "trello",
   "google_calendar",
+  "gmail",
   "notion",
 ]);
 

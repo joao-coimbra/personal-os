@@ -1,6 +1,10 @@
 import { getApiUrl } from "@/lib/server-url";
 
-export type IntegrationProvider = "trello" | "google_calendar" | "notion";
+export type IntegrationProvider =
+  | "trello"
+  | "google_calendar"
+  | "gmail"
+  | "notion";
 
 export function startOAuth(
   provider: IntegrationProvider,

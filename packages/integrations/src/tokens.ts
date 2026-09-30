@@ -4,7 +4,11 @@ import { and, eq } from "drizzle-orm";
 
 import { decryptSecret, encryptSecret } from "./crypto";
 
-export type IntegrationProvider = "trello" | "google_calendar" | "notion";
+export type IntegrationProvider =
+  | "trello"
+  | "google_calendar"
+  | "gmail"
+  | "notion";
 
 export async function getIntegrationToken(
   db: Database,

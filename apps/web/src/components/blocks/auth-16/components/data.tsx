@@ -1,5 +1,6 @@
 import { GithubDark } from "@personal-os/ui/components/svgs/githubDark";
 import { GithubLight } from "@personal-os/ui/components/svgs/githubLight";
+import { Gmail } from "@personal-os/ui/components/svgs/gmail";
 import { Google } from "@personal-os/ui/components/svgs/google";
 import { GoogleCalendar } from "@personal-os/ui/components/svgs/googleCalendar";
 import { Notion } from "@personal-os/ui/components/svgs/notion";
@@ -60,6 +61,11 @@ export const AUTH16_CAPABILITIES: AuthCapability[] = [
     icon: <GoogleCalendar aria-hidden="true" className="size-4" />,
     id: "google_calendar",
     name: "Google Calendar",
+  },
+  {
+    icon: <Gmail aria-hidden="true" className="size-4" />,
+    id: "gmail",
+    name: "Gmail",
   },
   {
     icon: <Notion aria-hidden="true" className="size-4" />,

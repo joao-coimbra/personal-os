@@ -15,16 +15,17 @@
 | Desktop | Tauri 2 (dialog/fs para workspace local) |
 | Monorepo | Turborepo, Bun |
 
-Integrações externas: **Trello**, **Google Calendar**, **Notion** via botão **Conectar** (OAuth).
+Integrações externas: **Trello**, **Google Calendar**, **Gmail**, **Notion** via botão **Conectar** (OAuth).
 
 **Login (Better Auth + UI ReUI auth-16):**
-- Google: `{SERVER}/api/auth/callback/google` — pede escopo de Calendar e sincroniza `google_calendar` automaticamente.
+- Google: `{SERVER}/api/auth/callback/google` — pede escopo de Calendar e sincroniza `google_calendar` automaticamente (Gmail continua conexão explícita separada).
 - GitHub: `{SERVER}/api/auth/callback/github` — autenticação apenas.
 - Magic link por e-mail via **Resend** (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`).
 - Páginas legais: `/terms` e `/privacy`.
 
 Redirects de Connect:
 - Google Calendar: `{SERVER}/api/integrations/oauth/google_calendar/callback`
+- Gmail: `{SERVER}/api/integrations/oauth/gmail/callback` (escopo `gmail.readonly`)
 - Notion: `{SERVER}/api/integrations/oauth/notion/callback`
 - Trello: `{WEB}/oauth/trello`
 

@@ -16,6 +16,7 @@ import { auth, db } from "../services";
 const PROVIDERS = new Set<OAuthProvider>([
   "trello",
   "google_calendar",
+  "gmail",
   "notion",
 ]);
 
@@ -134,8 +135,12 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        if (provider === "google_calendar") {
-          const tokens = await exchangeGoogleCode(query.code, oauthEnv());
+        if (provider === "google_calendar" || provider === "gmail") {
+          const tokens = await exchangeGoogleCode(
+            query.code,
+            oauthEnv(),
+            provider
+          );
           await saveIntegrationToken(db, {
             accessToken: tokens.accessToken,
             encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
