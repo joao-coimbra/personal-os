@@ -1,11 +1,14 @@
 import { Badge } from "@personal-os/ui/components/badge";
+import { GoogleCalendar } from "@personal-os/ui/components/svgs/googleCalendar";
+import { Notion } from "@personal-os/ui/components/svgs/notion";
+import { Trello } from "@personal-os/ui/components/svgs/trello";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, Kanban, NotebookPen } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
 import { ConnectProviderCard } from "@/features/integrations/connect-provider-card";
+import type { IntegrationProvider } from "@/lib/oauth";
 import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_app/integrations")({
@@ -21,27 +24,24 @@ export const Route = createFileRoute("/_app/integrations")({
 
 const apps = [
   {
-    accentClassName: "bg-[#0079BF]",
     description: "Boards, cards e prioridades Eisenhower",
-    icon: Kanban,
     id: "trello" as const,
+    logo: <Trello aria-hidden="true" />,
     name: "Trello",
   },
   {
-    accentClassName: "bg-[#4285F4]",
     description: "Eventos e blocos de foco no calendário",
-    icon: CalendarDays,
     id: "google_calendar" as const,
+    logo: <GoogleCalendar aria-hidden="true" />,
     name: "Google Calendar",
   },
   {
-    accentClassName: "bg-[#111111]",
     description: "Busca, leitura e notas no workspace",
-    icon: NotebookPen,
     id: "notion" as const,
+    logo: <Notion aria-hidden="true" />,
     name: "Notion",
   },
-];
+] as const;
 
 const aiClients = [
   {
@@ -57,7 +57,7 @@ const aiClients = [
     description: "Use o endpoint MCP com token pessoal quando disponível.",
     name: "Gemini",
   },
-];
+] as const;
 
 function IntegrationsPage() {
   const list = useQuery(orpc.integrations.list.queryOptions());
@@ -75,13 +75,20 @@ function IntegrationsPage() {
   }, [queryClient, search.connected, search.error]);
 
   const disconnect = useMutation({
-    mutationFn: (provider: "trello" | "google_calendar" | "notion") =>
+    mutationFn: (provider: IntegrationProvider) =>
       client.integrations.disconnect({ provider }),
     onSuccess: () => queryClient.invalidateQueries(),
   });
 
-  const statusFor = (provider: string) =>
-    list.data?.find((i) => i.provider === provider)?.status ?? "disconnected";
+  const connected = useMemo(
+    () =>
+      new Set(
+        (list.data ?? [])
+          .filter((integration) => integration.status === "connected")
+          .map((integration) => integration.provider)
+      ),
+    [list.data]
+  );
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-10">
@@ -99,11 +106,10 @@ function IntegrationsPage() {
         </h2>
         {apps.map((app) => (
           <ConnectProviderCard
-            accentClassName={app.accentClassName}
             description={app.description}
-            icon={app.icon}
-            isConnected={statusFor(app.id) === "connected"}
+            isConnected={connected.has(app.id)}
             key={app.id}
+            logo={app.logo}
             name={app.name}
             onDisconnect={() => disconnect.mutate(app.id)}
             provider={app.id}

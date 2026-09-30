@@ -1,99 +1,121 @@
-import { Badge } from "@personal-os/ui/components/badge";
 import { Button } from "@personal-os/ui/components/button";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@personal-os/ui/components/item";
+import { Spinner } from "@personal-os/ui/components/spinner";
 import { cn } from "@personal-os/ui/lib/utils";
-import type { LucideIcon } from "lucide-react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { type IntegrationProvider, startOAuth } from "@/lib/oauth";
 
 export interface ConnectProviderCardProps {
-  accentClassName: string;
   description: string;
-  icon: LucideIcon;
   isConnected: boolean;
   isPending?: boolean;
+  logo: ReactNode;
   name: string;
   onDisconnect?: () => void;
   provider: IntegrationProvider;
   returnTo?: string;
 }
 
+const connectedLabel = (
+  <span className="inline-flex items-center gap-1 font-normal text-emerald-700 text-xs dark:text-emerald-400">
+    <Check aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+    Conectado
+  </span>
+);
+
 export function ConnectProviderCard({
-  accentClassName,
   description,
-  icon: Icon,
   isConnected,
   isPending,
+  logo,
   name,
   onDisconnect,
   provider,
   returnTo = "/integrations",
 }: ConnectProviderCardProps) {
   return (
-    <div
+    <Item
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-card/80 p-5 shadow-sm backdrop-blur transition hover:shadow-md",
-        isConnected && "border-emerald-500/40"
+        "items-center",
+        isConnected && "border-emerald-500/35 bg-emerald-500/[0.03]"
       )}
+      size="sm"
+      variant="outline"
     >
-      <div
-        className={cn(
-          "pointer-events-none absolute -top-8 -right-8 size-32 rounded-full opacity-30 blur-2xl",
-          accentClassName
-        )}
-      />
-      <div className="relative flex items-start gap-4">
-        <div
-          className={cn(
-            "flex size-12 shrink-0 items-center justify-center rounded-xl text-white shadow-inner",
-            accentClassName
-          )}
-        >
-          <Icon className="size-6" />
-        </div>
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h3 className="font-semibold text-base tracking-tight">{name}</h3>
-              <p className="mt-0.5 text-muted-foreground text-sm">
-                {description}
-              </p>
-            </div>
-            <Badge variant={isConnected ? "default" : "secondary"}>
-              {isConnected ? "Conectado" : "Desconectado"}
-            </Badge>
-          </div>
-          {isConnected ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-emerald-700 text-sm dark:text-emerald-400">
-                <CheckCircle2 className="size-4" />
-                Pronto para o operador
-              </span>
-              {onDisconnect && (
-                <Button
-                  onClick={onDisconnect}
-                  size="sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  Desconectar
-                </Button>
-              )}
-            </div>
-          ) : (
-            <Button
-              className="w-full sm:w-auto"
-              disabled={isPending}
-              onClick={() => startOAuth(provider, returnTo)}
-              size="lg"
-              type="button"
-            >
-              {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-              Conectar {name}
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
+      <ItemMedia
+        className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-background text-foreground shadow-none [&_svg]:size-5"
+        variant="default"
+      >
+        {logo}
+      </ItemMedia>
+
+      <ItemContent className="min-w-0 gap-0.5">
+        <ItemTitle className="gap-2">
+          <span>{name}</span>
+          {isConnected ? connectedLabel : null}
+        </ItemTitle>
+        <ItemDescription className="line-clamp-2 text-xs sm:text-sm">
+          {description}
+        </ItemDescription>
+      </ItemContent>
+
+      <ItemActions className="ms-auto shrink-0">
+        <ProviderActions
+          isConnected={isConnected}
+          isPending={isPending}
+          onDisconnect={onDisconnect}
+          provider={provider}
+          returnTo={returnTo}
+        />
+      </ItemActions>
+    </Item>
+  );
+}
+
+function ProviderActions({
+  isConnected,
+  isPending,
+  onDisconnect,
+  provider,
+  returnTo,
+}: {
+  isConnected: boolean;
+  isPending?: boolean;
+  onDisconnect?: () => void;
+  provider: IntegrationProvider;
+  returnTo: string;
+}) {
+  if (isConnected) {
+    if (!onDisconnect) {
+      return null;
+    }
+
+    return (
+      <Button onClick={onDisconnect} size="sm" type="button" variant="ghost">
+        Desconectar
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      disabled={isPending}
+      onClick={() => startOAuth(provider, returnTo)}
+      size="sm"
+      type="button"
+      variant="outline"
+    >
+      {isPending ? <Spinner className="size-3.5" /> : null}
+      Conectar
+    </Button>
   );
 }
