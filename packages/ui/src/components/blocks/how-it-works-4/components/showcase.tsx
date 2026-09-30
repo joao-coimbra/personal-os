@@ -144,8 +144,9 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
           <div
             className={cn(
               "relative w-full overflow-clip",
-              // Prior good compact height (welcome breakout). Prefer over taller h-80+.
-              compact ? "aspect-[16/9] max-h-60" : "aspect-[20/9]"
+              // Welcome HIW: intentionally tall fixed viewport (not max-h-60).
+              // Fixed height + w-full avoids aspect/max-h shrinking used width.
+              compact ? "@container h-80 sm:h-96 lg:h-[28rem]" : "aspect-[20/9]"
             )}
           >
             <div
