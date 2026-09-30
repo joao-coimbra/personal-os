@@ -4,17 +4,17 @@ import { Google } from "@personal-os/ui/components/svgs/google";
 import { CalendarDays, Kanban, NotebookPen } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type AuthProvider = {
+export interface AuthProvider {
   id: "google" | "github";
   label: string;
   logo: ReactNode;
-};
+}
 
-export type AuthCapability = {
+export interface AuthCapability {
   id: string;
   icon: ReactNode;
   name: string;
-};
+}
 
 function ThemeLogo({ light, dark }: { dark: ReactNode; light: ReactNode }) {
   return (
