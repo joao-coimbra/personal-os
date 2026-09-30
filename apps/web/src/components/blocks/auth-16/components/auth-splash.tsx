@@ -65,7 +65,7 @@ export function AuthSplash() {
                   <FieldLabel>E-mail de trabalho</FieldLabel>
                   <Skeleton
                     aria-hidden="true"
-                    className="h-9 w-full rounded-4xl"
+                    className="h-9 w-full rounded-3xl"
                   />
                 </Field>
               </FieldGroup>
