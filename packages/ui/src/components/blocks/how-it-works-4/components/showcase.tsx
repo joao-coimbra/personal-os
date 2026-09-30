@@ -144,9 +144,8 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
           <div
             className={cn(
               "relative w-full overflow-clip",
-              // Tall enough that a width-scaled shell shows KPIs + primary panels
-              // before the intentional bottom crop.
-              compact ? "@container h-80 sm:h-96 lg:h-[28rem]" : "aspect-[20/9]"
+              // Prior good compact height (welcome breakout). Prefer over taller h-80+.
+              compact ? "aspect-[16/9] max-h-60" : "aspect-[20/9]"
             )}
           >
             <div
