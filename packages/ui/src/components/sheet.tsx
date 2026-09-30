@@ -1,5 +1,3 @@
-"use client";
-
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@personal-os/ui/components/button";
 import { cn } from "cn";
