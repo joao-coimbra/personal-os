@@ -8,7 +8,11 @@ export type IntegrationProvider =
   | "trello"
   | "google_calendar"
   | "gmail"
-  | "notion";
+  | "notion"
+  | "anthropic"
+  | "openai";
+
+export type AiModelProvider = "anthropic" | "openai";
 
 export async function getIntegrationToken(
   db: Database,
@@ -27,7 +31,7 @@ export async function getIntegrationToken(
       )
     )
     .limit(1);
-  const row = rows[0];
+  const [row] = rows;
   if (!row?.accessTokenEncrypted) {
     return null;
   }
@@ -56,7 +60,7 @@ export async function saveIntegrationToken(
       )
     )
     .limit(1);
-  const existing = existingRows[0];
+  const [existing] = existingRows;
 
   const values = {
     accessTokenEncrypted: encryptSecret(input.accessToken, input.encryptionKey),

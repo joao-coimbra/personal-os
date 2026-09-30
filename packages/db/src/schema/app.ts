@@ -16,6 +16,8 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
   "google_calendar",
   "gmail",
   "notion",
+  "anthropic",
+  "openai",
 ]);
 
 export const integrationStatusEnum = pgEnum("integration_status", [
@@ -38,6 +40,7 @@ export const userPreference = pgTable("user_preference", {
   focusMinutes: integer("focus_minutes").default(50).notNull(),
   id: text("id").primaryKey(),
   onboardingCompletedAt: timestamp("onboarding_completed_at"),
+  preferredAiProvider: text("preferred_ai_provider"),
   timezone: text("timezone").default("America/Sao_Paulo").notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

@@ -1,3 +1,6 @@
+/** Page cards bind connect/disconnect handlers from parent lists. */
+// biome-ignore-all lint/performance/noJsxPropsBind: intentional event props on Item actions
+
 import { Button } from "@personal-os/ui/components/button";
 import {
   Item,
@@ -12,7 +15,14 @@ import { cn } from "@personal-os/ui/lib/utils";
 import { Check } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { type IntegrationProvider, startOAuth } from "@/lib/oauth";
+import {
+  type AiModelProvider,
+  type IntegrationProvider,
+  type OAuthIntegrationProvider,
+  startOAuth,
+} from "@/lib/oauth";
+
+const API_KEY_PROVIDERS = new Set<AiModelProvider>(["anthropic", "openai"]);
 
 export interface ConnectProviderCardProps {
   description: string;
@@ -20,9 +30,11 @@ export interface ConnectProviderCardProps {
   isPending?: boolean;
   logo: ReactNode;
   name: string;
+  onConnect?: () => void;
   onDisconnect?: () => void;
   provider: IntegrationProvider;
   returnTo?: string;
+  secondaryAction?: ReactNode;
 }
 
 const connectedLabel = (
@@ -38,9 +50,11 @@ export function ConnectProviderCard({
   isPending,
   logo,
   name,
+  onConnect,
   onDisconnect,
   provider,
   returnTo = "/integrations",
+  secondaryAction,
 }: ConnectProviderCardProps) {
   return (
     <Item
@@ -68,10 +82,12 @@ export function ConnectProviderCard({
         </ItemDescription>
       </ItemContent>
 
-      <ItemActions className="ms-auto w-full shrink-0 sm:w-auto">
+      <ItemActions className="ms-auto flex w-full shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto">
+        {secondaryAction}
         <ProviderActions
           isConnected={isConnected}
           isPending={isPending}
+          onConnect={onConnect}
           onDisconnect={onDisconnect}
           provider={provider}
           returnTo={returnTo}
@@ -84,12 +100,14 @@ export function ConnectProviderCard({
 function ProviderActions({
   isConnected,
   isPending,
+  onConnect,
   onDisconnect,
   provider,
   returnTo,
 }: {
   isConnected: boolean;
   isPending?: boolean;
+  onConnect?: () => void;
   onDisconnect?: () => void;
   provider: IntegrationProvider;
   returnTo: string;
@@ -112,11 +130,22 @@ function ProviderActions({
     );
   }
 
+  const handleConnect = () => {
+    if (onConnect) {
+      onConnect();
+      return;
+    }
+    if (API_KEY_PROVIDERS.has(provider as AiModelProvider)) {
+      return;
+    }
+    startOAuth(provider as OAuthIntegrationProvider, returnTo);
+  };
+
   return (
     <Button
       className="w-full sm:w-auto"
       disabled={isPending}
-      onClick={() => startOAuth(provider, returnTo)}
+      onClick={handleConnect}
       size="sm"
       type="button"
       variant="outline"

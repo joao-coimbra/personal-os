@@ -12,6 +12,8 @@ const preferenceSchema = z.object({
   workStart: z.string(),
 });
 
+const preferredAiSchema = z.enum(["anthropic", "openai"]);
+
 export const preferencesRouter = {
   completeOnboarding: protectedProcedure.handler(async ({ context }) => {
     const userId = context.session.user.id;
@@ -43,6 +45,33 @@ export const preferencesRouter = {
       .limit(1);
     return rows[0] ?? null;
   }),
+
+  setPreferredAiProvider: protectedProcedure
+    .input(z.object({ preferredAiProvider: preferredAiSchema }))
+    .handler(async ({ context, input }) => {
+      const userId = context.session.user.id;
+      const rows = await context.db
+        .select()
+        .from(userPreference)
+        .where(eq(userPreference.userId, userId))
+        .limit(1);
+      if (rows[0]) {
+        await context.db
+          .update(userPreference)
+          .set({
+            preferredAiProvider: input.preferredAiProvider,
+            updatedAt: new Date(),
+          })
+          .where(eq(userPreference.userId, userId));
+        return { success: true };
+      }
+      await context.db.insert(userPreference).values({
+        id: crypto.randomUUID(),
+        preferredAiProvider: input.preferredAiProvider,
+        userId,
+      });
+      return { success: true };
+    }),
 
   upsert: protectedProcedure
     .input(preferenceSchema)

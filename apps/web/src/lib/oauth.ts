@@ -1,13 +1,17 @@
 import { getApiUrl } from "@/lib/server-url";
 
-export type IntegrationProvider =
+export type OAuthIntegrationProvider =
   | "trello"
   | "google_calendar"
   | "gmail"
   | "notion";
 
+export type AiModelProvider = "anthropic" | "openai";
+
+export type IntegrationProvider = OAuthIntegrationProvider | AiModelProvider;
+
 export function startOAuth(
-  provider: IntegrationProvider,
+  provider: OAuthIntegrationProvider,
   returnTo = "/integrations"
 ): void {
   const url = getApiUrl(
