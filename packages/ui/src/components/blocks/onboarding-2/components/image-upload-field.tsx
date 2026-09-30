@@ -55,7 +55,7 @@ export function ImageUploadField({
         </AvatarFallback>
       </Avatar>
 
-      <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="min-w-0 space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative inline-flex">
             <Button

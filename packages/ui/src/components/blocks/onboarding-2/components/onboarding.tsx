@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@personal-os/ui/components/button";
 import { Checkbox } from "@personal-os/ui/components/checkbox";
 import {
@@ -21,15 +23,18 @@ import {
 } from "@personal-os/ui/components/field";
 import { Input } from "@personal-os/ui/components/input";
 import { Item, ItemGroup } from "@personal-os/ui/components/item";
+import { Frame, FramePanel } from "@personal-os/ui/components/reui/frame";
 import { IconStack } from "@personal-os/ui/components/reui/icon-stack";
 import { Spinner } from "@personal-os/ui/components/spinner";
 import { cn } from "cn";
 import {
-  ArrowLeftIcon,
+  CalendarDays,
   CircleCheckIcon,
+  Kanban,
+  NotebookPen,
   RocketIcon,
-  SparklesIcon,
 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   type CSSProperties,
   type FormEvent,
@@ -43,14 +48,44 @@ import {
   ONBOARDING_STEPS,
   TIMEZONE_GROUPS,
 } from "./data";
-import { DotSphere } from "./dot-sphere";
-import { OnboardingLogo } from "./onboarding-logo";
+import { OnboardingPageBackground } from "./onboarding-background";
+import { OnboardingHeader } from "./onboarding-header";
 import {
   OnboardingStepper,
   OnboardingStepperCompact,
 } from "./onboarding-stepper";
 
 const TOTAL_STEPS = ONBOARDING_STEPS.length;
+
+const stepMotion = (direction: 1 | -1, reduce: boolean | null) =>
+  reduce
+    ? {
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        initial: { opacity: 1 },
+        transition: { duration: 0 },
+      }
+    : {
+        animate: {
+          filter: "blur(0px)",
+          opacity: 1,
+          scale: 1,
+          x: 0,
+        },
+        exit: {
+          filter: "blur(3px)",
+          opacity: 0,
+          scale: 0.998,
+          x: direction > 0 ? -10 : 10,
+        },
+        initial: {
+          filter: "blur(4px)",
+          opacity: 0,
+          scale: 0.998,
+          x: direction > 0 ? 14 : -14,
+        },
+        transition: { duration: 0.2, ease: "easeOut" as const },
+      };
 
 export type PersonalOsOnboardingPreferences = {
   breakMinutes: string;
@@ -79,7 +114,7 @@ function StepHeading({
   title: string;
 }) {
   return (
-    <div aria-live="polite" className="flex max-w-[30rem] flex-col gap-1.5">
+    <div aria-live="polite" className="flex max-w-md flex-col gap-1.5">
       <h1 className="text-balance font-semibold text-foreground text-xl leading-7 sm:text-[1.375rem]">
         {title}
       </h1>
@@ -90,16 +125,73 @@ function StepHeading({
   );
 }
 
-function WelcomeStep() {
+function WelcomeStep({
+  description,
+  title,
+}: {
+  description: string;
+  title: string;
+}) {
+  const highlights = [
+    {
+      detail: "Boards e prioridades Eisenhower",
+      icon: Kanban,
+      label: "Tarefas",
+      tone: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+    },
+    {
+      detail: "Agenda com blocos de foco",
+      icon: CalendarDays,
+      label: "Agenda",
+      tone: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
+    },
+    {
+      detail: "Base de conhecimento para o operador",
+      icon: NotebookPen,
+      label: "Notas",
+      tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    },
+  ] as const;
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="inline-flex w-fit items-center gap-2 rounded-full bg-foreground/5 px-3 py-1 text-sm">
-        <SparklesIcon aria-hidden="true" className="size-4" />
-        Setup em poucos minutos
+    <div aria-live="polite" className="flex flex-col gap-7">
+      <div className="flex max-w-md flex-col gap-2">
+        <h1 className="text-balance font-semibold text-foreground text-xl leading-7 sm:text-[1.375rem]">
+          {title}
+        </h1>
+        <p className="text-pretty text-muted-foreground text-sm leading-6">
+          {description}
+        </p>
       </div>
-      <p className="text-muted-foreground text-sm leading-6">
-        Trello para tarefas, Calendar para blocos de foco, Notion para notas. O
-        operador de IA usa essas conexões — sem colar tokens.
+
+      <ul className="flex flex-col gap-3">
+        {highlights.map((item) => {
+          const Icon = item.icon;
+          return (
+            <li className="flex items-start gap-3" key={item.label}>
+              <span
+                className={cn(
+                  "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl",
+                  item.tone
+                )}
+              >
+                <Icon aria-hidden="true" className="size-4" />
+              </span>
+              <span className="min-w-0 pt-0.5">
+                <span className="block font-medium text-foreground text-sm leading-5">
+                  {item.label}
+                </span>
+                <span className="mt-0.5 block text-muted-foreground text-sm leading-5">
+                  {item.detail}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      <p className="text-muted-foreground text-xs leading-5">
+        Sem colar tokens — só autorização oficial, no seu ritmo.
       </p>
     </div>
   );
@@ -135,13 +227,13 @@ function PreferencesStep({
         <Field className="gap-2">
           <FieldLabel htmlFor="personalos-timezone">Timezone</FieldLabel>
           <Combobox
+            defaultValue={timezone}
             items={[...TIMEZONE_GROUPS]}
             onValueChange={(value) => {
               if (typeof value === "string" && value.length > 0) {
                 onTimezoneChange(value);
               }
             }}
-            value={timezone}
           >
             <ComboboxInput
               className="w-full"
@@ -366,72 +458,29 @@ function OnboardingSidebar({
   onStepChange: (step: number) => void;
 }) {
   return (
-    <aside className="relative z-10 flex w-full shrink-0 px-4 py-4 sm:px-5 sm:py-5 lg:min-h-svh lg:w-[22rem] lg:px-5 lg:py-5">
-      <div className="dark relative isolate flex min-h-full w-full overflow-hidden rounded-2xl bg-background px-5 py-5 text-foreground ring-1 ring-border">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 overflow-hidden bg-background"
-        >
-          <DotSphere
-            dotGap={19}
-            dotRadiusMax={1.9}
-            motion="wave"
-            speed={0.4}
-            sphereCount={5}
-            sphereRadius="20%"
+    <aside className="relative z-10 flex w-full shrink-0 border-b px-5 pt-5 pb-4 sm:px-8 sm:pt-6 sm:pb-5 lg:min-h-svh lg:w-[18rem] lg:border-b-0 lg:py-7 lg:pr-5 lg:pl-7">
+      <div className="flex min-h-full w-full flex-col">
+        <OnboardingHeader canGoBack={canGoBack} onBack={onBack} />
+
+        <div className="mt-4 lg:hidden">
+          <OnboardingStepperCompact
+            currentStep={currentStep}
+            isComplete={isComplete}
+            onStepChange={onStepChange}
+            steps={ONBOARDING_STEPS}
           />
         </div>
 
-        <div className="relative flex min-h-full w-full flex-col">
-          <header className="flex min-h-9 items-center justify-between gap-3">
-            <OnboardingLogo className="[&>svg]:shrink-0 [&_span]:text-slate-50" />
-            {canGoBack ? (
-              <Button
-                aria-label="Voltar ao passo anterior"
-                className="text-white/65 hover:bg-white/10 hover:text-white"
-                onClick={onBack}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <ArrowLeftIcon aria-hidden="true" />
-              </Button>
-            ) : null}
-          </header>
-
-          <div className="mt-4 lg:hidden">
-            <OnboardingStepperCompact
-              currentStep={currentStep}
-              isComplete={isComplete}
-              onStepChange={onStepChange}
-              steps={ONBOARDING_STEPS}
-            />
-          </div>
-
-          <div className="hidden flex-1 items-center justify-center px-2 py-16 lg:flex">
-            <OnboardingStepper
-              currentStep={currentStep}
-              isComplete={isComplete}
-              onStepChange={onStepChange}
-              steps={ONBOARDING_STEPS}
-            />
-          </div>
-
-          <footer className="mt-5 flex min-h-8 shrink-0 items-end justify-between gap-4 text-xs lg:mt-0">
-            <a
-              className="rounded-sm text-left text-white/60 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
-              href="/privacy"
-            >
-              Privacidade
-            </a>
-            <a
-              className="rounded-sm text-right text-white/60 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
-              href="/integrations"
-            >
-              Integrações
-            </a>
-          </footer>
+        <div className="hidden flex-1 items-center justify-center py-16 lg:flex">
+          <OnboardingStepper
+            currentStep={currentStep}
+            isComplete={isComplete}
+            onStepChange={onStepChange}
+            steps={ONBOARDING_STEPS}
+          />
         </div>
+
+        <div aria-hidden="true" className="hidden h-8 shrink-0 lg:block" />
       </div>
     </aside>
   );
@@ -461,13 +510,14 @@ export function Onboarding({
     "prioritize",
     "timeblock",
   ]);
-  const [isComplete, setIsComplete] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
+  const shouldReduceMotion = useReducedMotion();
 
   const currentStepMeta: (typeof ONBOARDING_STEPS)[number] =
     ONBOARDING_STEPS[currentStep - 1] ?? ONBOARDING_STEPS[0]!;
   const isFinalStep = currentStep === TOTAL_STEPS;
-  const canSkip = Boolean(currentStepMeta.optional) || currentStep === 4;
   const busy = isSubmitting || isSavingPreferences || isFinishing;
   const canContinue =
     (currentStepMeta.id !== "goals" || goals.length > 0) &&
@@ -475,10 +525,14 @@ export function Onboarding({
       (timezone.trim().length > 0 &&
         workStart.trim().length > 0 &&
         workEnd.trim().length > 0));
+  const showSkip =
+    currentStepMeta.id === "integrations" || currentStepMeta.id === "goals";
 
   function goToStep(step: number) {
+    const nextStep = Math.min(Math.max(step, 1), TOTAL_STEPS);
+    setTransitionDirection(nextStep >= currentStep ? 1 : -1);
     setIsComplete(false);
-    setCurrentStep(Math.min(Math.max(step, 1), TOTAL_STEPS));
+    setCurrentStep(nextStep);
   }
 
   function handleGoalToggle(goal: FocusGoalValue, checked: boolean) {
@@ -493,10 +547,11 @@ export function Onboarding({
   }
 
   function handleSkip() {
-    if (!(canSkip || currentStepMeta.id === "integrations")) {
+    if (!showSkip) {
       return;
     }
     if (isFinalStep) {
+      setTransitionDirection(1);
       setIsComplete(true);
       return;
     }
@@ -537,11 +592,16 @@ export function Onboarding({
       return;
     }
 
+    setTransitionDirection(1);
     setIsComplete(true);
   }
 
+  const motionProps = stepMotion(transitionDirection, shouldReduceMotion);
+
   return (
-    <main className="relative isolate flex min-h-svh w-full flex-col bg-background text-foreground lg:flex-row">
+    <main className="relative isolate flex min-h-svh w-full flex-col bg-muted/20 text-foreground lg:flex-row">
+      <OnboardingPageBackground />
+
       <OnboardingSidebar
         canGoBack={!isComplete && currentStep > 1}
         currentStep={currentStep}
@@ -550,88 +610,120 @@ export function Onboarding({
         onStepChange={handleStepNavigation}
       />
 
-      <section className="relative z-10 flex min-w-0 flex-1 items-center justify-center px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
-        <div className="flex w-full max-w-[28rem] flex-col lg:min-h-[36rem]">
-          {isComplete ? (
-            <SuccessStep
-              isFinishing={isFinishing}
-              onEnter={onFinish}
-              onReviewSetup={() => {
-                setIsComplete(false);
-                setCurrentStep(TOTAL_STEPS);
-              }}
-            />
-          ) : (
-            <form
-              className="flex min-h-[inherit] flex-col"
-              onSubmit={handleSubmit}
-            >
-              <div className="flex flex-col gap-8 pt-2 sm:pt-6">
-                <StepHeading
-                  description={currentStepMeta.description}
-                  title={currentStepMeta.title}
-                />
-
-                {currentStepMeta.id === "welcome" ? <WelcomeStep /> : null}
-
-                {currentStepMeta.id === "integrations" ? (
-                  <div className="flex flex-col gap-3">
-                    {integrationsContent}
-                  </div>
-                ) : null}
-
-                {currentStepMeta.id === "preferences" ? (
-                  <PreferencesStep
-                    breakMinutes={breakMinutes}
-                    focusMinutes={focusMinutes}
-                    onBreakMinutesChange={setBreakMinutes}
-                    onFocusMinutesChange={setFocusMinutes}
-                    onTimezoneChange={setTimezone}
-                    onWorkEndChange={setWorkEnd}
-                    onWorkStartChange={setWorkStart}
-                    timezone={timezone}
-                    workEnd={workEnd}
-                    workStart={workStart}
-                  />
-                ) : null}
-
-                {currentStepMeta.id === "goals" ? (
-                  <GoalsStep goals={goals} onGoalToggle={handleGoalToggle} />
-                ) : null}
-
-                {currentStepMeta.id === "ai" ? <AiStep /> : null}
-              </div>
-
-              <div className="mt-auto flex flex-col gap-2 pt-10 pb-2">
-                <Button
-                  className="w-full"
-                  disabled={!canContinue || busy}
-                  type="submit"
-                >
-                  {busy ? (
-                    <Spinner aria-hidden="true" data-icon="inline-start" />
-                  ) : isFinalStep ? (
-                    <RocketIcon aria-hidden="true" data-icon="inline-start" />
-                  ) : null}
-                  {isFinalStep ? "Concluir setup" : "Continuar"}
-                </Button>
-
-                {currentStepMeta.id === "integrations" ||
-                currentStepMeta.id === "goals" ? (
-                  <Button
-                    className={cn("w-full")}
-                    disabled={busy}
-                    onClick={handleSkip}
-                    type="button"
-                    variant="ghost"
+      <section className="relative z-10 flex min-w-0 flex-1 p-3 sm:p-6 lg:py-6 lg:pr-5 lg:pl-0">
+        <Frame
+          className="flex w-full flex-1 gap-0 overflow-hidden bg-muted/60 [--frame-px:--spacing(1.25)] [--frame-py:--spacing(1.25)] lg:min-h-[calc(100svh-3rem)] dark:bg-muted/10"
+          spacing="xs"
+          variant="ghost"
+        >
+          <FramePanel className="flex flex-1 flex-col border-border/40 px-5 py-8 sm:px-10 sm:py-14 md:py-16 lg:px-14 lg:py-20 xl:py-24">
+            <div className="flex flex-1">
+              <AnimatePresence initial={false} mode="wait">
+                {isComplete ? (
+                  <motion.div
+                    className="mx-auto flex w-full max-w-sm flex-col lg:min-h-[36rem]"
+                    key="success"
+                    {...motionProps}
                   >
-                    Pular
-                  </Button>
-                ) : null}
-              </div>
-            </form>
-          )}
-        </div>
+                    <SuccessStep
+                      isFinishing={isFinishing}
+                      onEnter={onFinish}
+                      onReviewSetup={() => {
+                        setTransitionDirection(-1);
+                        setIsComplete(false);
+                        setCurrentStep(TOTAL_STEPS);
+                      }}
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.form
+                    className="mx-auto flex w-full max-w-md flex-col lg:min-h-[36rem]"
+                    key={currentStepMeta.id}
+                    onSubmit={handleSubmit}
+                    {...motionProps}
+                  >
+                    <div className="flex flex-col gap-8">
+                      {currentStepMeta.id === "welcome" ? (
+                        <WelcomeStep
+                          description={currentStepMeta.description}
+                          title={currentStepMeta.title}
+                        />
+                      ) : (
+                        <StepHeading
+                          description={currentStepMeta.description}
+                          title={currentStepMeta.title}
+                        />
+                      )}
+
+                      {currentStepMeta.id === "integrations" ? (
+                        <div className="flex flex-col gap-3">
+                          {integrationsContent}
+                        </div>
+                      ) : null}
+
+                      {currentStepMeta.id === "preferences" ? (
+                        <PreferencesStep
+                          breakMinutes={breakMinutes}
+                          focusMinutes={focusMinutes}
+                          onBreakMinutesChange={setBreakMinutes}
+                          onFocusMinutesChange={setFocusMinutes}
+                          onTimezoneChange={setTimezone}
+                          onWorkEndChange={setWorkEnd}
+                          onWorkStartChange={setWorkStart}
+                          timezone={timezone}
+                          workEnd={workEnd}
+                          workStart={workStart}
+                        />
+                      ) : null}
+
+                      {currentStepMeta.id === "goals" ? (
+                        <GoalsStep
+                          goals={goals}
+                          onGoalToggle={handleGoalToggle}
+                        />
+                      ) : null}
+
+                      {currentStepMeta.id === "ai" ? <AiStep /> : null}
+                    </div>
+
+                    <div className="mt-auto flex flex-col gap-2 pt-8">
+                      <Button
+                        className="w-full"
+                        disabled={!canContinue || busy}
+                        type="submit"
+                      >
+                        {busy ? (
+                          <Spinner
+                            aria-hidden="true"
+                            data-icon="inline-start"
+                          />
+                        ) : isFinalStep ? (
+                          <RocketIcon
+                            aria-hidden="true"
+                            data-icon="inline-start"
+                          />
+                        ) : null}
+                        {isFinalStep ? "Concluir setup" : "Continuar"}
+                      </Button>
+
+                      {showSkip ? (
+                        <Button
+                          className="w-full"
+                          disabled={busy}
+                          onClick={handleSkip}
+                          type="button"
+                          variant="ghost"
+                        >
+                          Pular
+                        </Button>
+                      ) : null}
+                    </div>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+            </div>
+          </FramePanel>
+        </Frame>
       </section>
     </main>
   );

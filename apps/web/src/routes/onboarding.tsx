@@ -1,4 +1,4 @@
-import { Onboarding } from "@personal-os/ui/components/blocks/onboarding-3/components/onboarding";
+import { Onboarding } from "@personal-os/ui/components/blocks/onboarding-2/components/onboarding";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { CalendarDays, Kanban, NotebookPen } from "lucide-react";

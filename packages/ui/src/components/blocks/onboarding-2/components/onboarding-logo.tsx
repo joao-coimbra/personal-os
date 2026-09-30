@@ -3,8 +3,8 @@ import { useId } from "react";
 
 export function OnboardingLogo({ className }: { className?: string }) {
   const reactId = useId().replaceAll(":", "");
-  const bgId = `pos-onboard-bg-${reactId}`;
-  const ringId = `pos-onboard-ring-${reactId}`;
+  const bgId = `pos-onboard2-bg-${reactId}`;
+  const ringId = `pos-onboard2-ring-${reactId}`;
 
   return (
     <div className={cn("inline-flex items-center gap-2", className)}>

@@ -14,28 +14,12 @@ import { type OnboardingStep, SIDEBAR_STEP_DESCRIPTIONS } from "./data";
 // Shared so the compact mobile rail and the vertical sidebar rail read as the
 // same component at every breakpoint.
 const INDICATOR_CLASSNAME =
-  "size-4 bg-transparent text-transparent ring-1 ring-white/35 data-[state=active]:bg-transparent data-[state=active]:ring-white/65 data-[state=completed]:bg-white data-[state=completed]:text-slate-950 data-[state=completed]:ring-white/75";
+  "bg-foreground text-background ring-border/60 data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=inactive]:bg-muted-foreground/8 data-[state=inactive]:text-muted-foreground data-[state=inactive]:ring-muted-foreground/12 data-[state=completed]:bg-success dark:bg-foreground dark:text-background dark:ring-border/70 dark:data-[state=active]:bg-foreground dark:data-[state=active]:text-background dark:data-[state=inactive]:bg-muted-foreground/14 dark:data-[state=inactive]:text-muted-foreground dark:data-[state=inactive]:ring-muted-foreground/12 size-5 text-[0.6875rem] ring-1 data-[state=completed]:text-white";
 
 const SEPARATOR_COLOR_CLASSNAME =
-  "bg-white/20 group-data-[state=completed]/step:bg-white/55";
+  "bg-muted-foreground/12 group-data-[state=active]/step:bg-muted-foreground/12 group-data-[state=inactive]/step:bg-muted-foreground/12 group-data-[state=completed]/step:bg-success dark:bg-muted-foreground/18 dark:group-data-[state=active]/step:bg-muted-foreground/18 dark:group-data-[state=inactive]/step:bg-muted-foreground/18";
 
 const COMPLETED_INDICATOR = <CheckIcon aria-hidden="true" className="size-3" />;
-
-function StepIndicatorContent({
-  step,
-  currentStep,
-  isComplete,
-}: {
-  step: OnboardingStep;
-  currentStep: number;
-  isComplete: boolean;
-}) {
-  return step.value === currentStep && !isComplete ? (
-    <span aria-hidden="true" className="block size-1.5 rounded-full bg-white" />
-  ) : (
-    <span className="sr-only">{step.value}</span>
-  );
-}
 
 /**
  * Compact horizontal rail for small screens. Stacking the full vertical rail
@@ -64,13 +48,13 @@ export function OnboardingStepperCompact({
       value={currentStep}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <p className="min-w-0 truncate font-medium text-[0.8125rem] text-white leading-4">
-          {isComplete ? "Setup complete" : activeStep?.label}
+        <p className="min-w-0 truncate font-medium text-[0.8125rem] text-foreground leading-4">
+          {isComplete ? "Setup concluído" : activeStep?.label}
         </p>
-        <p className="shrink-0 text-white/60 text-xs tabular-nums leading-4">
+        <p className="shrink-0 text-muted-foreground text-xs tabular-nums leading-4">
           {isComplete
-            ? `${steps.length} of ${steps.length}`
-            : `Step ${currentStep} of ${steps.length}`}
+            ? `${steps.length} de ${steps.length}`
+            : `Passo ${currentStep} de ${steps.length}`}
         </p>
       </div>
 
@@ -82,18 +66,14 @@ export function OnboardingStepperCompact({
             key={step.id}
             step={step.value}
           >
-            {/* -my-2 py-2 keeps the row 16px tall while giving the dot a 32px
+            {/* -my-2 py-2 keeps the row 20px tall while giving the dot a 36px
                 tap target. */}
             <StepperTrigger
               aria-label={`Step ${step.value}: ${step.label}`}
-              className="-my-2 shrink-0 py-2 focus-visible:ring-white/45"
+              className="-my-2 shrink-0 py-2"
             >
               <StepperIndicator className={INDICATOR_CLASSNAME}>
-                <StepIndicatorContent
-                  currentStep={currentStep}
-                  isComplete={isComplete}
-                  step={step}
-                />
+                {step.value}
               </StepperIndicator>
             </StepperTrigger>
             {step.value < steps.length ? (
@@ -139,26 +119,22 @@ export function OnboardingStepper({
               key={step.id}
               step={step.value}
             >
-              <StepperTrigger className="w-full items-start gap-3 pb-5 text-left last:pb-0">
-                <StepperIndicator className={`${INDICATOR_CLASSNAME} mt-0.5`}>
-                  <StepIndicatorContent
-                    currentStep={currentStep}
-                    isComplete={isComplete}
-                    step={step}
-                  />
+              <StepperTrigger className="w-full items-start gap-2.5 pb-4 text-left last:pb-0">
+                <StepperIndicator className={INDICATOR_CLASSNAME}>
+                  {step.value}
                 </StepperIndicator>
-                <div className="min-w-0 flex-1 text-left">
-                  <StepperTitle className="!text-[0.8125rem] !leading-4 text-white data-[state=completed]:text-white/88 data-[state=inactive]:text-white/72">
+                <div className="mt-0.5 min-w-0 flex-1 text-left">
+                  <StepperTitle className="!text-[0.8125rem] !leading-4">
                     {step.label}
                   </StepperTitle>
-                  <StepperDescription className="!text-xs !leading-4 mt-0.5 max-w-none text-white/50 data-[state=active]:text-white/60">
+                  <StepperDescription className="!text-xs !leading-4 mt-0.5 max-w-none">
                     {description}
                   </StepperDescription>
                 </div>
               </StepperTrigger>
               {step.value < steps.length ? (
                 <StepperSeparator
-                  className={`${SEPARATOR_COLOR_CLASSNAME} !h-[calc(100%-1.75rem)] absolute top-6 bottom-1 left-2 -order-1 m-0 w-px -translate-x-1/2`}
+                  className={`${SEPARATOR_COLOR_CLASSNAME} !h-[calc(100%-1.75rem)] absolute inset-y-0 top-6 left-2.5 -order-1 m-0 -translate-x-1/2`}
                 />
               ) : null}
             </StepperItem>

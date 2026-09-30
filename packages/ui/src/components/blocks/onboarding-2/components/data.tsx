@@ -34,7 +34,7 @@ export type FocusGoalValue =
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     description:
-      "Conecte ferramentas e defina seu ritmo. O operador de IA usa isso para priorizar e planejar o dia.",
+      "Em poucos minutos você conecta o essencial e o operador passa a priorizar e planejar com você.",
     id: "welcome",
     label: "Bem-vindo",
     title: "Seu sistema operacional pessoal",
