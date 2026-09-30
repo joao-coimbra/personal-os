@@ -387,11 +387,9 @@ export function OverviewWorkspace({ title, caption }: WorkspaceProps) {
           size="sm"
         >
           <CardHeader>
-            <CardTitle className="text-base leading-none">
-              Trending Blocks
-            </CardTitle>
+            <CardTitle className="text-base leading-none">Em alta</CardTitle>
             <CardDescription className="text-neutral-500 text-sm dark:text-neutral-400">
-              Most installed this week
+              Prioridades desta semana
             </CardDescription>
             <CardAction>
               <Badge
@@ -399,16 +397,16 @@ export function OverviewWorkspace({ title, caption }: WorkspaceProps) {
                 radius="full"
                 variant="outline"
               >
-                {TRENDING_BLOCKS.length} blocks
+                {TRENDING_BLOCKS.length} itens
               </Badge>
             </CardAction>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden border border-neutral-200 dark:border-neutral-800">
             <div className="grid shrink-0 grid-cols-[1.7fr_2fr_0.6fr_0.8fr_0.9fr] items-center gap-3 border-neutral-200 border-b px-3 py-2 font-medium text-sm dark:border-neutral-800">
-              <span>Block</span>
-              <span>Installs</span>
-              <span>Version</span>
-              <span>Uses</span>
+              <span>Item</span>
+              <span>Atividade</span>
+              <span>Origem</span>
+              <span>Usos</span>
               <span>Status</span>
             </div>
 
@@ -498,10 +496,10 @@ export function OverviewWorkspace({ title, caption }: WorkspaceProps) {
         >
           <CardHeader>
             <CardTitle className="text-base leading-none">
-              Recent Activity
+              Atividade recente
             </CardTitle>
             <CardDescription className="text-neutral-500 text-sm dark:text-neutral-400">
-              Latest in the registry
+              Últimos movimentos no workspace
             </CardDescription>
             <CardAction>
               <MoreHorizontalIcon
@@ -556,19 +554,19 @@ export function OverviewWorkspace({ title, caption }: WorkspaceProps) {
         size="sm"
       >
         <CardHeader>
-          <CardTitle className="text-base leading-none">Installs</CardTitle>
+          <CardTitle className="text-base leading-none">Atividade</CardTitle>
           <CardDescription className="text-neutral-500 text-sm dark:text-neutral-400">
-            CLI and MCP installs over time
+            Ações manuais e do operador ao longo do mês
           </CardDescription>
           <CardAction className="flex items-center gap-2">
             <DemandStat
               dotClassName="bg-teal-400"
-              label="Installs"
+              label="Feitas"
               value={group(INSTALL_TOTAL)}
             />
             <DemandStat
               dotClassName="bg-rose-500"
-              label="Target"
+              label="Meta"
               value={group(TARGET_TOTAL)}
             />
             <DemandStat
@@ -582,8 +580,8 @@ export function OverviewWorkspace({ title, caption }: WorkspaceProps) {
         <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
           <div className="flex shrink-0 items-center justify-between">
             <div className="flex items-center gap-4">
-              <LegendItem className="bg-teal-400" label="CLI" />
-              <LegendItem className={HATCH} label="MCP" />
+              <LegendItem className="bg-teal-400" label="Você" />
+              <LegendItem className={HATCH} label="Operador" />
               <LegendItem className="bg-rose-500" label="Target" />
             </div>
             <Badge
@@ -591,7 +589,7 @@ export function OverviewWorkspace({ title, caption }: WorkspaceProps) {
               radius="full"
               variant="outline"
             >
-              21 day view
+              Visão de 21 dias
             </Badge>
           </div>
 

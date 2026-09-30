@@ -88,7 +88,7 @@ function Sidebar({ activeNavId }: { activeNavId: string }) {
       </Item>
 
       <div className="px-2 pt-1.5 font-medium text-neutral-400 text-xs dark:text-neutral-500">
-        Platform
+        Workspace
       </div>
 
       <div className="flex flex-col gap-0.5">
@@ -150,11 +150,9 @@ function Sidebar({ activeNavId }: { activeNavId: string }) {
         size="sm"
       >
         <CardContent className="flex flex-col gap-2">
-          <span className="font-semibold text-sm">
-            Multi-theme support is here
-          </span>
+          <span className="font-semibold text-sm">Operador conectado</span>
           <span className="text-neutral-500 text-sm leading-5 dark:text-neutral-400">
-            Switch between Vega, Nova, Maia, Lyra, and Mira themes.
+            Prioriza boards, agenda blocos e usa suas notas.
           </span>
           <span
             aria-hidden="true"
@@ -180,8 +178,8 @@ function Sidebar({ activeNavId }: { activeNavId: string }) {
             </svg>
           </span>
           <div className="flex items-center justify-between text-neutral-500 text-xs dark:text-neutral-400">
-            <span>Read more</span>
-            <span>Dismiss</span>
+            <span>Saiba mais</span>
+            <span>Dispensar</span>
           </div>
         </CardContent>
       </Card>
