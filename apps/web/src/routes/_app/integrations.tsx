@@ -30,7 +30,10 @@ import { toast } from "sonner";
 
 import { ConnectProviderCard } from "@/features/integrations/connect-provider-card";
 import type { AiModelProvider, IntegrationProvider } from "@/lib/oauth";
+import { googleAuthRedirectUri } from "@/lib/oauth";
 import { client, orpc } from "@/utils/orpc";
+
+const REDIRECT_URI_ERROR_RE = /redirect_uri/i;
 
 export const Route = createFileRoute("/_app/integrations")({
   component: IntegrationsPage,
@@ -109,7 +112,15 @@ function IntegrationsPage() {
       invalidate();
     }
     if (search.error) {
-      toast.error(search.error);
+      const message = search.error;
+      if (REDIRECT_URI_ERROR_RE.test(message)) {
+        toast.error(
+          `${message} — esperado: ${googleAuthRedirectUri()} (Calendar) / veja .env.example`,
+          { duration: 20_000 }
+        );
+      } else {
+        toast.error(message);
+      }
     }
   }, [search.connected, search.error]);
 

@@ -1,12 +1,16 @@
 import {
   appReturnUrl,
+  betterAuthGoogleCallbackUrl,
   buildAuthorizeUrl,
+  callbackUrl,
   decodeOAuthState,
   encodeOAuthState,
   exchangeGoogleCode,
   exchangeNotionCode,
+  normalizeServerOrigin,
   type OAuthProvider,
   type OAuthStatePayload,
+  requiredGoogleRedirectUris,
   saveIntegrationToken,
 } from "@personal-os/integrations";
 import { fromNodeHeaders } from "better-auth/node";
@@ -22,12 +26,31 @@ const PROVIDERS = new Set<OAuthProvider>([
   "notion",
 ]);
 
+const REDIRECT_URI_ERROR_RE = /redirect_uri/i;
+
 function serverOrigin(): string {
   try {
-    return new URL(ENV.BETTER_AUTH_URL).origin;
+    return normalizeServerOrigin(ENV.BETTER_AUTH_URL);
   } catch {
     return "http://localhost:3000";
   }
+}
+
+function mismatchHint(provider: OAuthProvider): string {
+  if (provider === "google_calendar" || provider === "gmail") {
+    const uris = requiredGoogleRedirectUris(serverOrigin());
+    const expected =
+      provider === "gmail" ? uris.gmailConnect : uris.legacyCalendarConnect;
+    return `redirect_uri_mismatch: registre ${expected} (login/Calendar UI: ${uris.googleLoginAndCalendarConnect})`;
+  }
+  return `redirect_uri_mismatch: registre ${callbackUrl(serverOrigin(), provider)}`;
+}
+
+function callbackErrorMessage(provider: OAuthProvider, raw: string): string {
+  if (REDIRECT_URI_ERROR_RE.test(raw) || raw === "redirect_uri_mismatch") {
+    return mismatchHint(provider);
+  }
+  return raw;
 }
 
 function oauthEnv() {
@@ -114,12 +137,25 @@ export function registerOAuthRoutes(fastify: FastifyInstance) {
 
       try {
         const url = buildAuthorizeUrl(provider, oauthEnv(), state, returnTo);
+        const redirectUri = new URL(url).searchParams.get("redirect_uri");
+        request.log.info(
+          {
+            provider,
+            redirectUri,
+            betterAuthGoogle: betterAuthGoogleCallbackUrl(serverOrigin()),
+          },
+          "OAuth authorize redirect"
+        );
         return reply.redirect(url);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "OAuth is not configured";
+        const withHint =
+          provider === "google_calendar" || provider === "gmail"
+            ? `${message}. ${mismatchHint(provider)}`
+            : message;
         return reply.redirect(
-          appReturnUrl(ENV.CORS_ORIGIN, returnTo, { error: message })
+          appReturnUrl(ENV.CORS_ORIGIN, returnTo, { error: withHint })
         );
       }
     }
@@ -139,7 +175,10 @@ export function registerOAuthRoutes(fastify: FastifyInstance) {
       if (query.error || !query.state) {
         return reply.redirect(
           appReturnUrl(ENV.CORS_ORIGIN, "/integrations", {
-            error: query.error ?? "missing_state",
+            error: callbackErrorMessage(
+              provider,
+              query.error ?? "missing_state"
+            ),
           })
         );
       }

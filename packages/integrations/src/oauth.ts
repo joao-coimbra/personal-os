@@ -41,6 +41,8 @@ const GOOGLE_PROVIDERS = new Set<OAuthProvider>(["google_calendar", "gmail"]);
 /** Classic Trello Power-Up API key (32 hex). Atlassian OAuth client ids are rejected. */
 const TRELLO_POWERUP_API_KEY_RE = /^[0-9a-f]{32}$/i;
 
+const TRAILING_SLASHES_RE = /\/+$/;
+
 function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
@@ -74,11 +76,45 @@ export function decodeOAuthState(
   ) as OAuthStatePayload;
 }
 
+/** Strip path/query so `http://localhost:3000/api/auth` still yields a clean origin. */
+export function normalizeServerOrigin(serverOrigin: string): string {
+  try {
+    return new URL(serverOrigin).origin;
+  } catch {
+    return serverOrigin.replace(TRAILING_SLASHES_RE, "");
+  }
+}
+
 export function callbackUrl(
   serverOrigin: string,
   provider: OAuthProvider
 ): string {
-  return `${serverOrigin}/api/integrations/oauth/${provider}/callback`;
+  return `${normalizeServerOrigin(serverOrigin)}/api/integrations/oauth/${provider}/callback`;
+}
+
+/**
+ * Better Auth Google login (+ Calendar Connect via linkSocial) callback.
+ * Distinct from {@link callbackUrl} for `google_calendar` (legacy Connect route).
+ */
+export function betterAuthGoogleCallbackUrl(serverOrigin: string): string {
+  return `${normalizeServerOrigin(serverOrigin)}/api/auth/callback/google`;
+}
+
+/**
+ * Redirect URIs that must exist in Google Cloud Console for local/prod PersonalOS.
+ * Login + Calendar Connect share the Better Auth callback; Gmail Connect is separate.
+ */
+export function requiredGoogleRedirectUris(serverOrigin: string): {
+  gmailConnect: string;
+  googleLoginAndCalendarConnect: string;
+  legacyCalendarConnect: string;
+} {
+  const origin = normalizeServerOrigin(serverOrigin);
+  return {
+    gmailConnect: callbackUrl(origin, "gmail"),
+    googleLoginAndCalendarConnect: betterAuthGoogleCallbackUrl(origin),
+    legacyCalendarConnect: callbackUrl(origin, "google_calendar"),
+  };
 }
 
 /**

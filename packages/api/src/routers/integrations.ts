@@ -1,5 +1,10 @@
 import { integrationConnection } from "@personal-os/db/schema/app";
-import { saveIntegrationToken } from "@personal-os/integrations";
+import {
+  betterAuthGoogleCallbackUrl,
+  callbackUrl,
+  requiredGoogleRedirectUris,
+  saveIntegrationToken,
+} from "@personal-os/integrations";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -22,6 +27,12 @@ const providerSchema = z.enum([
   "anthropic",
   "openai",
 ]);
+
+function serverOrigin(): string {
+  return process.env.BETTER_AUTH_URL
+    ? new URL(process.env.BETTER_AUTH_URL).origin
+    : "http://localhost:3000";
+}
 
 async function pingAnthropic(apiKey: string): Promise<void> {
   const response = await fetch("https://api.anthropic.com/v1/models", {
@@ -139,10 +150,19 @@ export const integrationsRouter = {
       const returnTo = input.returnTo?.startsWith("/")
         ? input.returnTo
         : "/integrations";
-      const base = process.env.BETTER_AUTH_URL
-        ? new URL(process.env.BETTER_AUTH_URL).origin
-        : "http://localhost:3000";
+      const base = serverOrigin();
+      const googleUris = requiredGoogleRedirectUris(base);
+
+      // Calendar Connect in the UI uses Better Auth linkSocial (login callback).
+      let redirectUri = callbackUrl(base, input.provider);
+      if (input.provider === "google_calendar") {
+        redirectUri = googleUris.googleLoginAndCalendarConnect;
+      } else if (input.provider === "gmail") {
+        redirectUri = googleUris.gmailConnect;
+      }
+
       return {
+        redirectUri,
         url: `${base}/api/integrations/oauth/${input.provider}/start?returnTo=${encodeURIComponent(returnTo)}`,
       };
     }),
@@ -159,4 +179,21 @@ export const integrationsRouter = {
       .from(integrationConnection)
       .where(eq(integrationConnection.userId, context.session.user.id))
   ),
+
+  /** Exact Google redirect URIs to register in Cloud Console for this deployment. */
+  oauthRedirectUris: protectedProcedure.handler(() => {
+    const base = serverOrigin();
+    const google = requiredGoogleRedirectUris(base);
+    return {
+      google: {
+        gmailConnect: google.gmailConnect,
+        /** Legacy `/api/integrations/oauth/google_calendar/callback` */
+        legacyCalendarConnect: google.legacyCalendarConnect,
+        /** Login + Calendar Connect (Better Auth / linkSocial) */
+        loginAndCalendarConnect: google.googleLoginAndCalendarConnect,
+      },
+      googleAuthCallback: betterAuthGoogleCallbackUrl(base),
+      notion: callbackUrl(base, "notion"),
+    };
+  }),
 };

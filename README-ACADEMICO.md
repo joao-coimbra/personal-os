@@ -18,16 +18,21 @@
 Integrações externas: **Trello**, **Google Calendar**, **Gmail**, **Notion** via botão **Conectar** (OAuth).
 
 **Login (Better Auth + UI ReUI auth-16):**
-- Google: `{SERVER}/api/auth/callback/google` — pede escopo de Calendar e sincroniza `google_calendar` automaticamente (Gmail continua conexão explícita separada).
+- Google: `{SERVER}/api/auth/callback/google` — pede escopo de Calendar e sincroniza `google_calendar` automaticamente (Gmail continua conexão explícita separada). O botão **Conectar** Calendar também usa este callback via Better Auth `linkSocial` (mesmo `redirect_uri` do login).
 - GitHub: `{SERVER}/api/auth/callback/github` — autenticação apenas.
 - Magic link por e-mail via **Resend** (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`).
 - Páginas legais: `/terms` e `/privacy`.
 
-Redirects de Connect:
-- Google Calendar: `{SERVER}/api/integrations/oauth/google_calendar/callback`
-- Gmail: `{SERVER}/api/integrations/oauth/gmail/callback` (escopo `gmail.readonly`)
+Redirects de Connect (Google Cloud Console — Authorized redirect URIs):
+- Google login + Calendar Connect: `{SERVER}/api/auth/callback/google` (**obrigatório**)
+- Gmail Connect: `{SERVER}/api/integrations/oauth/gmail/callback` (escopo `gmail.readonly`)
 - Notion: `{SERVER}/api/integrations/oauth/notion/callback`
 - Trello: `{WEB}/oauth/trello`
+- Legacy Calendar API route (opcional): `{SERVER}/api/integrations/oauth/google_calendar/callback`
+
+Local (`BETTER_AUTH_URL=http://localhost:3000`, web `:3001`):
+- `http://localhost:3000/api/auth/callback/google`
+- `http://localhost:3000/api/integrations/oauth/gmail/callback` (se usar Gmail)
 
 ## 3. Fluxo de uso (golden path)
 
