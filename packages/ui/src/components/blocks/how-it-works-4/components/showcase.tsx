@@ -139,8 +139,8 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
           <div
             className={cn(
               "relative w-full overflow-clip",
-              // Tall welcome preview (user request): was aspect-[16/9] max-h-60.
-              compact ? "h-80 sm:h-96 lg:h-[28rem]" : "aspect-[20/9]"
+              // User feedback ("a anterior estava ótimo"): keep aspect-[16/9] max-h-60; do not raise to h-80+.
+              compact ? "aspect-[16/9] max-h-60" : "aspect-[20/9]"
             )}
           >
             <div
