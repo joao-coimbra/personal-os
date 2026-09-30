@@ -28,11 +28,13 @@ Redirects de Connect (Google Cloud Console — Authorized redirect URIs):
 - Gmail Connect: `{SERVER}/api/integrations/oauth/gmail/callback` (escopo `gmail.readonly`)
 - Notion: `{SERVER}/api/integrations/oauth/notion/callback`
 - Trello: `{WEB}/oauth/trello`
-- Legacy Calendar API route (opcional): `{SERVER}/api/integrations/oauth/google_calendar/callback`
+- Legacy Calendar API route: blocked for Connect — UI uses `{SERVER}/api/auth/callback/google` via `linkSocial`. Register the URI on the **same** OAuth client as `GOOGLE_CLIENT_ID`.
 
 Local (`BETTER_AUTH_URL=http://localhost:3000`, web `:3001`):
 - `http://localhost:3000/api/auth/callback/google`
 - `http://localhost:3000/api/integrations/oauth/gmail/callback` (se usar Gmail)
+
+Se aparecer `redirect_uri_mismatch` com a URI acima já cadastrada, compare o Client ID na Console com `GOOGLE_CLIENT_ID` em `apps/server/.env` (client errado é a causa mais comum).
 
 ## 3. Fluxo de uso (golden path)
 

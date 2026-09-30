@@ -2,6 +2,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { getApiUrl, getAppUrl } from "@/lib/server-url";
+import { client } from "@/utils/orpc";
 
 export type OAuthIntegrationProvider =
   | "trello"
@@ -42,10 +43,24 @@ function withQueryParam(returnTo: string, key: string, value: string): string {
   return `${url.pathname}${url.search}`;
 }
 
+async function googleConsoleHint(): Promise<string> {
+  const expectedUri = googleAuthRedirectUri();
+  try {
+    const meta = await client.integrations.oauthRedirectUris();
+    const fingerprint = meta.googleClientIdFingerprint;
+    if (fingerprint) {
+      return `Registre ${expectedUri} no OAuth client ${fingerprint} (deve ser o mesmo GOOGLE_CLIENT_ID do apps/server/.env)`;
+    }
+  } catch {
+    // offline / unauthenticated — fall through
+  }
+  return `Registre no Google Cloud Console: ${expectedUri}`;
+}
+
 /**
  * Google Calendar Connect uses Better Auth `linkSocial` so redirect_uri matches
  * login (`/api/auth/callback/google`). Custom `/api/integrations/oauth/google_calendar/*`
- * remains for legacy/API callers but is not used by the Connect button.
+ * start is blocked server-side — it would send a Console-unregistered redirect_uri.
  */
 async function connectGoogleCalendar(returnTo: string): Promise<void> {
   const expectedUri = googleAuthRedirectUri();
@@ -54,28 +69,49 @@ async function connectGoogleCalendar(returnTo: string): Promise<void> {
   );
   const errorCallbackURL = getAppUrl(returnTo);
 
-  await authClient.linkSocial(
-    {
-      callbackURL,
-      errorCallbackURL,
-      provider: "google",
-      scopes: [...GOOGLE_CALENDAR_SCOPES],
-    },
-    {
-      onError: (ctx) => {
-        const message =
-          ctx.error.message || "Falha ao conectar Google Calendar";
-        if (OAUTH_CONSOLE_HINT_RE.test(message)) {
-          toast.error(
-            `${message} Registre no Google Cloud Console: ${expectedUri}`,
-            { duration: 20_000 }
-          );
-          return;
-        }
-        toast.error(message);
-      },
+  const result = await authClient.linkSocial({
+    callbackURL,
+    disableRedirect: true,
+    errorCallbackURL,
+    provider: "google",
+    scopes: [...GOOGLE_CALENDAR_SCOPES],
+  });
+
+  if (result.error) {
+    const message = result.error.message || "Falha ao conectar Google Calendar";
+    if (OAUTH_CONSOLE_HINT_RE.test(message)) {
+      toast.error(`${message} ${await googleConsoleHint()}`, {
+        duration: 20_000,
+      });
+      return;
     }
-  );
+    toast.error(message);
+    return;
+  }
+
+  const authorizeUrl = result.data?.url;
+  if (!authorizeUrl) {
+    toast.error("Falha ao iniciar OAuth do Google Calendar");
+    return;
+  }
+
+  let actualRedirectUri: string | null = null;
+  try {
+    actualRedirectUri = new URL(authorizeUrl).searchParams.get("redirect_uri");
+  } catch {
+    toast.error("URL de autorização Google inválida");
+    return;
+  }
+
+  if (actualRedirectUri !== expectedUri) {
+    toast.error(
+      `redirect_uri inesperado: ${actualRedirectUri ?? "(vazio)"}. Esperado: ${expectedUri}. ${await googleConsoleHint()}`,
+      { duration: 25_000 }
+    );
+    return;
+  }
+
+  window.location.assign(authorizeUrl);
 }
 
 export function startOAuth(

@@ -101,6 +101,24 @@ export function betterAuthGoogleCallbackUrl(serverOrigin: string): string {
 }
 
 /**
+ * Short fingerprint of GOOGLE_CLIENT_ID so operators can confirm Console
+ * credentials match the running API (without printing the full secret id).
+ */
+export function googleClientIdFingerprint(
+  clientId: string | undefined
+): string | null {
+  if (!clientId) {
+    return null;
+  }
+  const trimmed = clientId.trim();
+  if (trimmed.length < 24) {
+    return trimmed;
+  }
+  // Keep project prefix + unique client suffix (…xxxxx.apps.googleusercontent.com).
+  return `${trimmed.slice(0, 20)}…${trimmed.slice(-36)}`;
+}
+
+/**
  * Redirect URIs that must exist in Google Cloud Console for local/prod PersonalOS.
  * Login + Calendar Connect share the Better Auth callback; Gmail Connect is separate.
  */

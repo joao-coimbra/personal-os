@@ -7,6 +7,7 @@ import {
   encodeOAuthState,
   exchangeGoogleCode,
   exchangeNotionCode,
+  googleClientIdFingerprint,
   normalizeServerOrigin,
   type OAuthProvider,
   type OAuthStatePayload,
@@ -27,6 +28,7 @@ const PROVIDERS = new Set<OAuthProvider>([
 ]);
 
 const REDIRECT_URI_ERROR_RE = /redirect_uri/i;
+const GOOGLE_AUTHORIZE_HOST = "accounts.google.com";
 
 function serverOrigin(): string {
   try {
@@ -36,12 +38,21 @@ function serverOrigin(): string {
   }
 }
 
+function clientFingerprint(): string {
+  return (
+    googleClientIdFingerprint(ENV.GOOGLE_CLIENT_ID) ??
+    "(GOOGLE_CLIENT_ID vazio)"
+  );
+}
+
 function mismatchHint(provider: OAuthProvider): string {
+  const client = clientFingerprint();
   if (provider === "google_calendar" || provider === "gmail") {
     const uris = requiredGoogleRedirectUris(serverOrigin());
-    const expected =
-      provider === "gmail" ? uris.gmailConnect : uris.legacyCalendarConnect;
-    return `redirect_uri_mismatch: registre ${expected} (login/Calendar UI: ${uris.googleLoginAndCalendarConnect})`;
+    if (provider === "google_calendar") {
+      return `redirect_uri_mismatch: UI Calendar usa ${uris.googleLoginAndCalendarConnect} no client ${client}`;
+    }
+    return `redirect_uri_mismatch: registre ${uris.gmailConnect} no client ${client} (login/Calendar UI: ${uris.googleLoginAndCalendarConnect})`;
   }
   return `redirect_uri_mismatch: registre ${callbackUrl(serverOrigin(), provider)}`;
 }
@@ -108,6 +119,42 @@ async function persistOAuthTokens(
 }
 
 export function registerOAuthRoutes(fastify: FastifyInstance) {
+  // Log Better Auth Google authorize redirects (login + linkSocial).
+  fastify.addHook("onSend", (request, _reply, payload) => {
+    if (
+      request.method !== "POST" ||
+      !(
+        request.url.startsWith("/api/auth/sign-in/social") ||
+        request.url.startsWith("/api/auth/link-social")
+      )
+    ) {
+      return payload;
+    }
+    try {
+      const body =
+        typeof payload === "string"
+          ? (JSON.parse(payload) as { url?: string })
+          : null;
+      const authorizeUrl = body?.url;
+      if (!authorizeUrl?.includes(GOOGLE_AUTHORIZE_HOST)) {
+        return payload;
+      }
+      const parsed = new URL(authorizeUrl);
+      request.log.info(
+        {
+          clientIdFingerprint: clientFingerprint(),
+          path: request.url,
+          redirectUri: parsed.searchParams.get("redirect_uri"),
+          expectedRedirectUri: betterAuthGoogleCallbackUrl(serverOrigin()),
+        },
+        "Better Auth Google authorize URL"
+      );
+    } catch {
+      // ignore non-JSON payloads
+    }
+    return payload;
+  });
+
   fastify.get(
     "/api/integrations/oauth/:provider/start",
     async (request, reply) => {
@@ -125,6 +172,26 @@ export function registerOAuthRoutes(fastify: FastifyInstance) {
         ? query.returnTo
         : "/integrations";
 
+      // Calendar Connect UI uses Better Auth linkSocial (login callback).
+      // The legacy start route would send
+      // /api/integrations/oauth/google_calendar/callback — which is NOT in
+      // Console by default and causes redirect_uri_mismatch.
+      if (provider === "google_calendar") {
+        const expected = betterAuthGoogleCallbackUrl(serverOrigin());
+        request.log.warn(
+          {
+            clientIdFingerprint: clientFingerprint(),
+            expectedRedirectUri: expected,
+          },
+          "Blocked legacy google_calendar OAuth start; use linkSocial"
+        );
+        return reply.redirect(
+          appReturnUrl(ENV.CORS_ORIGIN, returnTo, {
+            error: `google_calendar Connect usa Better Auth linkSocial. Registre ${expected} no OAuth client ${clientFingerprint()} (GOOGLE_CLIENT_ID do apps/server/.env) — não use /api/integrations/oauth/google_calendar/callback.`,
+          })
+        );
+      }
+
       const state = encodeOAuthState(
         {
           nonce: crypto.randomUUID(),
@@ -140,6 +207,7 @@ export function registerOAuthRoutes(fastify: FastifyInstance) {
         const redirectUri = new URL(url).searchParams.get("redirect_uri");
         request.log.info(
           {
+            clientIdFingerprint: clientFingerprint(),
             provider,
             redirectUri,
             betterAuthGoogle: betterAuthGoogleCallbackUrl(serverOrigin()),
@@ -151,7 +219,7 @@ export function registerOAuthRoutes(fastify: FastifyInstance) {
         const message =
           error instanceof Error ? error.message : "OAuth is not configured";
         const withHint =
-          provider === "google_calendar" || provider === "gmail"
+          provider === "gmail"
             ? `${message}. ${mismatchHint(provider)}`
             : message;
         return reply.redirect(

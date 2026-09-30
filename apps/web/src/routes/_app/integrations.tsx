@@ -115,7 +115,7 @@ function IntegrationsPage() {
       const message = search.error;
       if (REDIRECT_URI_ERROR_RE.test(message)) {
         toast.error(
-          `${message} — esperado: ${googleAuthRedirectUri()} (Calendar) / veja .env.example`,
+          `${message} — esperado: ${googleAuthRedirectUri()} no mesmo OAuth client que GOOGLE_CLIENT_ID (apps/server/.env)`,
           { duration: 20_000 }
         );
       } else {

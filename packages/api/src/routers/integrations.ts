@@ -2,6 +2,7 @@ import { integrationConnection } from "@personal-os/db/schema/app";
 import {
   betterAuthGoogleCallbackUrl,
   callbackUrl,
+  googleClientIdFingerprint,
   requiredGoogleRedirectUris,
   saveIntegrationToken,
 } from "@personal-os/integrations";
@@ -154,16 +155,30 @@ export const integrationsRouter = {
       const googleUris = requiredGoogleRedirectUris(base);
 
       // Calendar Connect in the UI uses Better Auth linkSocial (login callback).
-      let redirectUri = callbackUrl(base, input.provider);
+      // Do not return the legacy /start URL for google_calendar — that path is blocked.
       if (input.provider === "google_calendar") {
-        redirectUri = googleUris.googleLoginAndCalendarConnect;
-      } else if (input.provider === "gmail") {
+        return {
+          clientIdFingerprint: googleClientIdFingerprint(
+            process.env.GOOGLE_CLIENT_ID
+          ),
+          redirectUri: googleUris.googleLoginAndCalendarConnect,
+          url: null,
+          useLinkSocial: true as const,
+        };
+      }
+
+      let redirectUri = callbackUrl(base, input.provider);
+      if (input.provider === "gmail") {
         redirectUri = googleUris.gmailConnect;
       }
 
       return {
+        clientIdFingerprint: googleClientIdFingerprint(
+          process.env.GOOGLE_CLIENT_ID
+        ),
         redirectUri,
         url: `${base}/api/integrations/oauth/${input.provider}/start?returnTo=${encodeURIComponent(returnTo)}`,
+        useLinkSocial: false as const,
       };
     }),
 
@@ -187,12 +202,16 @@ export const integrationsRouter = {
     return {
       google: {
         gmailConnect: google.gmailConnect,
-        /** Legacy `/api/integrations/oauth/google_calendar/callback` */
+        /** Legacy `/api/integrations/oauth/google_calendar/callback` (blocked in UI/start). */
         legacyCalendarConnect: google.legacyCalendarConnect,
         /** Login + Calendar Connect (Better Auth / linkSocial) */
         loginAndCalendarConnect: google.googleLoginAndCalendarConnect,
       },
       googleAuthCallback: betterAuthGoogleCallbackUrl(base),
+      /** Must match the OAuth 2.0 Client ID being edited in Cloud Console. */
+      googleClientIdFingerprint: googleClientIdFingerprint(
+        process.env.GOOGLE_CLIENT_ID
+      ),
       notion: callbackUrl(base, "notion"),
     };
   }),
