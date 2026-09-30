@@ -438,12 +438,11 @@ function stepNumberFromId(stepId: string | undefined): number {
   if (!stepId) {
     return 1;
   }
-  const match = ONBOARDING_STEPS.find((step) => step.id === stepId);
-  return match?.value ?? 1;
+  return ONBOARDING_STEPS.find((step) => step.id === stepId)?.value ?? 1;
 }
 
 function stepIdFromNumber(step: number): string {
-  return ONBOARDING_STEPS[step - 1]?.id ?? ONBOARDING_STEPS[0]?.id ?? "welcome";
+  return ONBOARDING_STEPS[step - 1]?.id ?? "welcome";
 }
 
 export function Onboarding({

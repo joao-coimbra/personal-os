@@ -73,44 +73,22 @@ function appRedirect(
   return url.toString();
 }
 
-function redirectError(
+/**
+ * Popup mode lands on `/oauth/popup-done` (opener stays put).
+ * Page mode navigates the tab back to `returnTo`.
+ */
+function oauthCompleteRedirect(
   returnTo: string,
-  message: string,
-  displayMode: "popup" | "page" = "page"
+  displayMode: "popup" | "page" | undefined,
+  extras: Record<string, string>
 ): string {
   if (displayMode === "popup") {
     return appRedirect("/oauth/popup-done", {
-      error: message,
       returnTo: safeReturnTo(returnTo),
-    });
-  }
-  return appRedirect(returnTo, { error: message });
-}
-
-function successRedirect(
-  payload: OAuthStatePayload,
-  provider: OAuthProvider
-): string {
-  if (payload.displayMode === "popup") {
-    return appRedirect("/oauth/popup-done", {
-      connected: provider,
-      returnTo: payload.returnTo,
-    });
-  }
-  return appRedirect(payload.returnTo, { connected: provider });
-}
-
-function finishRedirect(
-  payload: OAuthStatePayload,
-  extras: Record<string, string>
-): string {
-  if (payload.displayMode === "popup") {
-    return appRedirect("/oauth/popup-done", {
-      returnTo: payload.returnTo,
       ...extras,
     });
   }
-  return appRedirect(payload.returnTo, extras);
+  return appRedirect(returnTo, extras);
 }
 
 async function persistOAuthTokens(input: {
@@ -188,7 +166,9 @@ async function handleOAuthStart(request: FastifyRequest, reply: FastifyReply) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unsupported provider";
-    return reply.redirect(redirectError(returnTo, message, displayMode));
+    return reply.redirect(
+      oauthCompleteRedirect(returnTo, displayMode, { error: message })
+    );
   }
 
   const pkce = provider === "trello" ? createPkcePair() : null;
@@ -221,7 +201,9 @@ async function handleOAuthStart(request: FastifyRequest, reply: FastifyReply) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "OAuth is not configured";
-    return reply.redirect(redirectError(returnTo, message, displayMode));
+    return reply.redirect(
+      oauthCompleteRedirect(returnTo, displayMode, { error: message })
+    );
   }
 }
 
@@ -274,7 +256,11 @@ async function handleOAuthCallback(
   }
 
   if (!query.code) {
-    return reply.redirect(finishRedirect(payload, { error: "missing_code" }));
+    return reply.redirect(
+      oauthCompleteRedirect(payload.returnTo, payload.displayMode, {
+        error: "missing_code",
+      })
+    );
   }
 
   try {
@@ -287,10 +273,18 @@ async function handleOAuthCallback(
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "oauth_exchange_failed";
-    return reply.redirect(finishRedirect(payload, { error: message }));
+    return reply.redirect(
+      oauthCompleteRedirect(payload.returnTo, payload.displayMode, {
+        error: message,
+      })
+    );
   }
 
-  return reply.redirect(successRedirect(payload, provider));
+  return reply.redirect(
+    oauthCompleteRedirect(payload.returnTo, payload.displayMode, {
+      connected: provider,
+    })
+  );
 }
 
 export function registerOAuthRoutes(fastify: FastifyInstance) {

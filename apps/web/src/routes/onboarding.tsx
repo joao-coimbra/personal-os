@@ -7,13 +7,12 @@ import { Trello } from "@personal-os/ui/components/svgs/trello";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import { toast } from "sonner";
 import { ConnectProviderCard } from "@/features/integrations/connect-provider-card";
 import { authClient } from "@/lib/auth-client";
 import {
   type IntegrationProvider,
-  OAUTH_POPUP_MESSAGE,
-  type OAuthPopupMessage,
+  parseOAuthPopupMessage,
+  reportOAuthOutcome,
 } from "@/lib/oauth";
 import { client, orpc } from "@/utils/orpc";
 
@@ -107,21 +106,17 @@ function OnboardingPage() {
   const queryClient = useQueryClient();
   const integrations = useQuery(orpc.integrations.list.queryOptions());
   const search = Route.useSearch();
-  const stepId =
-    resolveOnboardingStep(search.step, search.connected) ?? "welcome";
+  const stepId = search.step ?? "welcome";
 
   useEffect(() => {
     if (!(search.connected || search.error)) {
       return;
     }
 
-    if (search.connected) {
-      toast.success(`${search.connected.replaceAll("_", " ")} conectado`);
-      queryClient.invalidateQueries().catch(() => undefined);
-    }
-    if (search.error) {
-      toast.error(search.error);
-    }
+    reportOAuthOutcome(
+      { connected: search.connected, error: search.error },
+      queryClient
+    );
 
     const nextStep =
       stepId === "welcome" || search.connected ? "integrations" : stepId;
@@ -134,24 +129,17 @@ function OnboardingPage() {
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) {
+      const data = parseOAuthPopupMessage(event);
+      if (!data) {
         return;
       }
-      const data = event.data as OAuthPopupMessage | null;
-      if (!data || data.type !== OAUTH_POPUP_MESSAGE) {
-        return;
-      }
+      reportOAuthOutcome(data, queryClient);
       if (data.connected) {
-        toast.success(`${data.connected.replaceAll("_", " ")} conectado`);
-        queryClient.invalidateQueries().catch(() => undefined);
         navigate({
           replace: true,
           search: { step: "integrations" },
           to: "/onboarding",
         }).catch(() => undefined);
-      }
-      if (data.error) {
-        toast.error(data.error);
       }
     };
     window.addEventListener("message", onMessage);
@@ -225,10 +213,6 @@ function OnboardingPage() {
     }).catch(() => undefined);
   };
 
-  const handleDisconnect = (provider: IntegrationProvider) => {
-    disconnect.mutate(provider);
-  };
-
   return (
     <Onboarding
       integrationsContent={
@@ -243,7 +227,7 @@ function OnboardingPage() {
                 key={provider.id}
                 logo={provider.logo}
                 name={provider.name}
-                onDisconnect={() => handleDisconnect(provider.id)}
+                onDisconnect={() => disconnect.mutate(provider.id)}
                 provider={provider.id}
                 returnTo="/onboarding?step=integrations"
               />
