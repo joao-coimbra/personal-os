@@ -104,30 +104,18 @@ fastify.route({
       const url = new URL(request.url, `http://${request.headers.host}`);
       const headers = fromNodeHeaders(request.headers);
       const req = new Request(url.toString(), {
-        body: request.body ? JSON.stringify(request.body) : undefined,
+        ...(request.body ? { body: JSON.stringify(request.body) } : {}),
         headers,
         method: request.method,
       });
+      // Fastify natively forwards Fetch Response status/headers/body (including
+      // multi Set-Cookie). Do not reply.send(null): that serializes JSON `null`
+      // and leaves OAuth callbacks stranded on the API origin.
       const response = await auth.handler(req);
-      reply.status(response.status);
-      // Preserve every Set-Cookie (Headers.get() collapses them).
-      const setCookies =
-        typeof response.headers.getSetCookie === "function"
-          ? response.headers.getSetCookie()
-          : [];
-      response.headers.forEach((value, key) => {
-        if (key.toLowerCase() === "set-cookie") {
-          return;
-        }
-        reply.header(key, value);
-      });
-      for (const cookie of setCookies) {
-        reply.header("set-cookie", cookie);
-      }
-      reply.send(response.body ? await response.text() : null);
+      return reply.send(response);
     } catch (error) {
       fastify.log.error({ err: error }, "Authentication Error:");
-      reply.status(500).send({
+      return reply.status(500).send({
         code: "AUTH_FAILURE",
         error: "Internal authentication error",
       });
