@@ -190,16 +190,27 @@ function Sidebar({ activeNavId }: { activeNavId: string }) {
 export function AppShell({
   activeNavId,
   children,
+  compact = false,
 }: {
   activeNavId: string;
   children: ReactNode;
+  /** Welcome embed: fill card width so the right panels are not clipped. */
+  compact?: boolean;
 }) {
   return (
     <div
-      // Taller than the visible frame on purpose: it crops the console at the
-      // bottom. Keep the transform; `zoom` is not portable enough to swap in.
-      className="absolute top-[6.25cqw] left-[6.25cqw] h-[1060px] w-[1400px] origin-top-left"
-      style={{ transform: "scale(calc(100cqw / 1600px))" }}
+      // Full page crops bottom on purpose. Compact fills width (96cqw/1400)
+      // so sidebar + KPIs + right panels span the card. Do not min() with cqh —
+      // that letterboxes and looks half-missing. Keep transform; not zoom.
+      className={cn(
+        "absolute h-[1060px] w-[1400px] origin-top-left",
+        compact ? "top-[2.5cqw] left-[2cqw]" : "top-[6.25cqw] left-[6.25cqw]"
+      )}
+      style={{
+        transform: compact
+          ? "scale(calc(96cqw / 1400px))"
+          : "scale(calc(100cqw / 1600px))",
+      }}
     >
       <Card
         className={cn(

@@ -132,8 +132,11 @@ function WelcomeStep({
   return (
     <div aria-live="polite" className="flex flex-col gap-5">
       <StepHeading description={description} title={title} />
-      {/* Bleed past STEP_COLUMN toward FramePanel edges; title/button stay max-w-xl. */}
-      <div className="-mx-3 max-w-none sm:-mx-6 lg:-mx-12 xl:-mx-24 xl:max-w-3xl">
+      {/*
+        Nearly full FramePanel width. Title + Começar stay on max-w-xl.
+        Measured: max-w-3xl (~768px) was still too narrow for the AppShell mock.
+      */}
+      <div className="relative left-1/2 w-[min(72rem,calc(100vw-22rem))] max-w-none -translate-x-1/2 max-lg:w-[min(72rem,calc(100vw-1.5rem))]">
         <HowItWorks embedded />
       </div>
     </div>
