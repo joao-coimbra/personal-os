@@ -132,8 +132,12 @@ function WelcomeStep({
   return (
     <div aria-live="polite" className="flex flex-col gap-5">
       <StepHeading description={description} title={title} />
-      {/* Bleed past STEP_COLUMN toward FramePanel edges; title/button stay max-w-xl. */}
-      <div className="-mx-3 max-w-none sm:-mx-6 lg:-mx-12 xl:-mx-24 xl:max-w-3xl">
+      {/*
+        Break out of the centered max-w-xl column toward the FramePanel
+        content edges. Title + Começar stay on STEP_COLUMN; only the card
+        expands. 100cqi resolves against FramePanel's @container/frame.
+      */}
+      <div className="relative left-1/2 w-[min(72rem,100cqi)] max-w-none -translate-x-1/2">
         <HowItWorks embedded />
       </div>
     </div>
@@ -560,7 +564,7 @@ export function Onboarding({
           spacing="xs"
           variant="ghost"
         >
-          <FramePanel className="flex flex-1 flex-col border-border/40 px-5 py-8 sm:px-10 sm:py-14 md:py-16 lg:px-14 lg:py-20 xl:py-24">
+          <FramePanel className="@container/frame flex flex-1 flex-col border-border/40 px-5 py-8 sm:px-10 sm:py-14 md:py-16 lg:px-14 lg:py-20 xl:py-24">
             <div className="flex flex-1">
               <AnimatePresence initial={false} mode="wait">
                 {isComplete ? (
