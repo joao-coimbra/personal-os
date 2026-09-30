@@ -8,6 +8,10 @@
     "./lib/*": "./src/lib/*.ts",
     "./components/*": "./src/components/*.tsx",
     "./components/svgs/*": "./src/components/svgs/*.tsx",
+    "./components/reui/*": "./src/components/reui/*.tsx",
+    "./components/blocks/onboarding-3": "./src/components/blocks/onboarding-3/page.tsx",
+    "./components/blocks/onboarding-3/*": "./src/components/blocks/onboarding-3/*.tsx",
+    "./components/blocks/onboarding-3/components/*": "./src/components/blocks/onboarding-3/components/*.tsx",
     "./hooks/*": "./src/hooks/*.ts",
     "./postcss.config": "./postcss.config.mjs"
   },
@@ -16,6 +20,8 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
     "@shadcn/react": "^0.3.1",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",

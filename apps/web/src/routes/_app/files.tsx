@@ -15,6 +15,7 @@ import {
   loadStoredWorkspaces,
   pickWorkspaceDirectory,
 } from "@/lib/desktop-workspace";
+import { getApiUrl } from "@/lib/server-url";
 import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_app/files")({
