@@ -20,20 +20,36 @@ import {
 } from "@personal-os/ui/components/message-scroller";
 import { DefaultChatTransport } from "ai";
 import { ArrowUpIcon, Loader2 } from "lucide-react";
-import { type FormEvent, type KeyboardEvent, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  useState,
+} from "react";
 import { Streamdown } from "streamdown";
 
 import { getApiUrl } from "@/lib/server-url";
 
+function resolveChatErrorMessage(error: unknown): string | null {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  return null;
+}
+
 export function OperatorChat() {
   const [input, setInput] = useState("");
-  const { messages, sendMessage, status } = useChat({
+  const { error, messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: getApiUrl("/api/ai"),
       credentials: "include",
     }),
   });
   const isSending = status === "submitted" || status === "streaming";
+  const errorMessage = resolveChatErrorMessage(error);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -50,6 +66,10 @@ export function OperatorChat() {
       e.preventDefault();
       e.currentTarget.form?.requestSubmit();
     }
+  };
+
+  const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
   };
 
   return (
@@ -79,6 +99,7 @@ export function OperatorChat() {
                         >
                           <BubbleContent>
                             {message.parts?.map((part, index) => {
+                              const partKey = `${message.id}-${part.type}-${index}`;
                               if (part.type === "text") {
                                 return (
                                   <Streamdown
@@ -86,7 +107,7 @@ export function OperatorChat() {
                                       status === "streaming" &&
                                       message.role === "assistant"
                                     }
-                                    key={index}
+                                    key={partKey}
                                   >
                                     {part.text}
                                   </Streamdown>
@@ -96,7 +117,7 @@ export function OperatorChat() {
                                 return (
                                   <p
                                     className="text-muted-foreground text-xs"
-                                    key={index}
+                                    key={partKey}
                                   >
                                     ✓ Consultando dados conectados…
                                   </p>
@@ -121,14 +142,26 @@ export function OperatorChat() {
                   </Bubble>
                 </MessageScrollerItem>
               )}
+              {errorMessage ? (
+                <MessageScrollerItem>
+                  <Bubble variant="secondary">
+                    <BubbleContent>
+                      <p className="text-destructive text-sm">{errorMessage}</p>
+                    </BubbleContent>
+                  </Bubble>
+                </MessageScrollerItem>
+              ) : null}
             </MessageScrollerContent>
           </MessageScrollerViewport>
         </MessageScroller>
+        {/* biome-ignore lint/performance/noJsxPropsBind: form handlers are instance-local */}
         <form className="border-t p-3" onSubmit={handleSubmit}>
           <InputGroup>
             <InputGroupTextarea
               disabled={isSending}
-              onChange={(e) => setInput(e.target.value)}
+              // biome-ignore lint/performance/noJsxPropsBind: controlled textarea
+              onChange={handleInputChange}
+              // biome-ignore lint/performance/noJsxPropsBind: enter-to-submit
               onKeyDown={handlePromptKeyDown}
               placeholder="Mensagem para o operador…"
               rows={2}

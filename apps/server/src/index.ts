@@ -53,11 +53,11 @@ const fastify = Fastify({
 
 fastify.register(fastifyCors, baseCorsConfig);
 fastify.register(fastifyMultipart, { limits: { fileSize: 8 * 1024 * 1024 } });
-void registerFileRoutes(fastify);
-void registerMcpRoutes(fastify);
-void registerOAuthRoutes(fastify);
+registerFileRoutes(fastify);
+registerMcpRoutes(fastify);
+registerOAuthRoutes(fastify);
 
-fastify.register(async (rpcApp) => {
+fastify.register((rpcApp) => {
   // Fully utilize oRPC features by letting oRPC parse the request body.
   rpcApp.addContentTypeParser("*", (_, _payload, done) => {
     done(null, undefined);
@@ -91,11 +91,11 @@ fastify.route({
     try {
       const url = new URL(request.url, `http://${request.headers.host}`);
       const headers = new Headers();
-      Object.entries(request.headers).forEach(([key, value]) => {
+      for (const [key, value] of Object.entries(request.headers)) {
         if (value) {
           headers.append(key, value.toString());
         }
-      });
+      }
       const req = new Request(url.toString(), {
         body: request.body ? JSON.stringify(request.body) : undefined,
         headers,
@@ -103,7 +103,9 @@ fastify.route({
       });
       const response = await auth.handler(req);
       reply.status(response.status);
-      response.headers.forEach((value, key) => reply.header(key, value));
+      for (const [key, value] of response.headers.entries()) {
+        reply.header(key, value);
+      }
       reply.send(response.body ? await response.text() : null);
     } catch (error) {
       fastify.log.error({ err: error }, "Authentication Error:");
@@ -126,24 +128,38 @@ fastify.post("/api/ai", async (request, reply) => {
   }
 
   const body = request.body as AiRequestBody;
-  const result = await createOperatorStream(
-    {
-      db,
-      encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
-      trelloApiKey: ENV.TRELLO_API_KEY,
-      userId: session.user.id,
-    },
-    body
-  );
+  try {
+    const result = await createOperatorStream(
+      {
+        db,
+        encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
+        trelloApiKey: ENV.TRELLO_API_KEY,
+        userId: session.user.id,
+      },
+      body
+    );
 
-  const response = createUIMessageStreamResponse({
-    stream: toUIMessageStream({ stream: result.stream }),
-  });
-  reply.status(response.status);
-  response.headers.forEach((value, key) => {
-    reply.header(key, value);
-  });
-  return reply.send(response.body);
+    const response = createUIMessageStreamResponse({
+      stream: toUIMessageStream({
+        onError: (error) => {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          fastify.log.error({ err: error }, "Operator stream error");
+          return message;
+        },
+        stream: result.stream as never,
+      }),
+    });
+    reply.status(response.status);
+    for (const [key, value] of response.headers.entries()) {
+      reply.header(key, value);
+    }
+    return reply.send(response.body);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    fastify.log.error({ err: error }, "Operator AI request failed");
+    return reply.status(502).send({ error: message });
+  }
 });
 
 fastify.get("/", async () => "OK");

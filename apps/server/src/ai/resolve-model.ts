@@ -8,8 +8,19 @@ import { and, eq, inArray } from "drizzle-orm";
 
 const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 const OPENAI_MODEL = "gpt-5.4";
+/**
+ * Gemini Flash fallback. Prefer the preview id: gemini-2.5-flash is retired for
+ * new keys, and gemini-3.8-flash currently fails more often under capacity.
+ */
+const GOOGLE_MODEL = "gemini-3-flash-preview";
+const GOOGLE_MODEL_FALLBACKS = [
+  "gemini-3-flash-preview",
+  "gemini-3.8-flash",
+] as const;
 
 export type AiModelProvider = "anthropic" | "openai";
+
+export type OperatorProvider = AiModelProvider | "google";
 
 type OperatorLanguageModel =
   | ReturnType<ReturnType<typeof createAnthropic>>
@@ -19,10 +30,10 @@ type OperatorLanguageModel =
 export interface ResolvedOperatorModel {
   label: string;
   model: OperatorLanguageModel;
-  provider: AiModelProvider | "google";
+  provider: OperatorProvider;
 }
 
-async function markProviderError(
+export async function markProviderError(
   db: Database,
   userId: string,
   provider: AiModelProvider,
@@ -49,7 +60,13 @@ async function resolveFromProvider(
   encryptionKey: string,
   provider: AiModelProvider
 ): Promise<ResolvedOperatorModel | null> {
-  const apiKey = await getIntegrationToken(db, userId, provider, encryptionKey);
+  let apiKey: string | null;
+  try {
+    apiKey = await getIntegrationToken(db, userId, provider, encryptionKey);
+  } catch {
+    await markProviderError(db, userId, provider, "decrypt_failed");
+    return null;
+  }
   if (!apiKey) {
     return null;
   }
@@ -95,12 +112,23 @@ function buildProviderOrder(
   return order;
 }
 
-export async function resolveOperatorModel(input: {
+function googleFallback(modelId: string = GOOGLE_MODEL): ResolvedOperatorModel {
+  return {
+    label: `Gemini (${modelId})`,
+    model: google(modelId),
+    provider: "google",
+  };
+}
+
+/**
+ * Ordered candidates: preferred connected key → other connected keys → Gemini env.
+ */
+export async function resolveOperatorModelCandidates(input: {
   db: Database;
   encryptionKey: string;
   preferredAiProvider?: string | null;
   userId: string;
-}): Promise<ResolvedOperatorModel> {
+}): Promise<ResolvedOperatorModel[]> {
   const connectedRows = await input.db
     .select({ provider: integrationConnection.provider })
     .from(integrationConnection)
@@ -123,15 +151,24 @@ export async function resolveOperatorModel(input: {
     )
   );
 
+  const candidates: ResolvedOperatorModel[] = [];
   for (const resolved of resolvedList) {
     if (resolved) {
-      return resolved;
+      candidates.push(resolved);
     }
   }
+  for (const modelId of GOOGLE_MODEL_FALLBACKS) {
+    candidates.push(googleFallback(modelId));
+  }
+  return candidates;
+}
 
-  return {
-    label: "Gemini (gemini-2.5-flash)",
-    model: google("gemini-2.5-flash"),
-    provider: "google",
-  };
+export async function resolveOperatorModel(input: {
+  db: Database;
+  encryptionKey: string;
+  preferredAiProvider?: string | null;
+  userId: string;
+}): Promise<ResolvedOperatorModel> {
+  const candidates = await resolveOperatorModelCandidates(input);
+  return candidates[0] ?? googleFallback();
 }
