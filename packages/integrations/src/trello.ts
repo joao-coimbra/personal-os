@@ -28,7 +28,10 @@ export async function trelloFetch<T>(
     },
   });
   if (!response.ok) {
-    throw new Error(`Trello API error: ${response.status}`);
+    const detail = (await response.text()).slice(0, 200);
+    throw new Error(
+      `Trello API error: ${response.status}${detail ? ` ${detail}` : ""}`
+    );
   }
   return response.json() as Promise<T>;
 }

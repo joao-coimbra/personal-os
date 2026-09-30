@@ -51,8 +51,10 @@ const GMAIL_SCOPES = [
 /**
  * Must match scopes enabled on the Atlassian OAuth 2.0 client.
  * `offline_access` is required to receive a refresh token.
+ * `read:member:trello` is required for `/members/me` (account label + board listing).
  */
 export const TRELLO_OAUTH_SCOPES = [
+  "read:member:trello",
   "read:board:trello",
   "write:board:trello",
   "write:board:membership:trello",
@@ -361,17 +363,26 @@ export async function refreshTrelloAccessToken(
 
 export async function fetchTrelloMemberLabel(
   accessToken: string
-): Promise<string | undefined> {
+): Promise<string> {
   const response = await fetch(
     "https://api.trello.com/1/members/me?fields=fullName,username",
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!response.ok) {
-    return;
+    const detail = (await response.text()).slice(0, 200);
+    throw new Error(
+      `Trello access token was issued but the Trello API rejected it (${response.status}${detail ? `: ${detail}` : ""}). Confirm the OAuth 2.0 app is from trello.com/power-ups/admin (or apps/admin), has the Trello scopes enabled (including read:member:trello), then reconnect.`
+    );
   }
   const data = (await response.json()) as {
     fullName?: string;
     username?: string;
   };
-  return data.fullName ?? data.username;
+  const label = data.fullName ?? data.username;
+  if (!label) {
+    throw new Error(
+      "Trello API responded but returned no member label. Reconnect Trello."
+    );
+  }
+  return label;
 }

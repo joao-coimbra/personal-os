@@ -119,6 +119,7 @@ describe("authorize urls", () => {
     expect(urls.trello).toContain("https://auth.atlassian.com/authorize?");
     expect(urls.trello).toContain("client_id=trello-client");
     expect(urls.trello).toContain("code_challenge_method=S256");
+    expect(urls.trello).toContain("read%3Amember%3Atrello");
     expect(urls.trello).toContain("read%3Aboard%3Atrello");
     expect(urls.trello).toContain("offline_access");
     expect(TRELLO_OAUTH_SCOPES).toContain("offline_access");
