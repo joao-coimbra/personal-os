@@ -1,12 +1,11 @@
 import { Onboarding } from "@personal-os/ui/components/blocks/onboarding-2/components/onboarding";
 import { ItemGroup } from "@personal-os/ui/components/item";
-import { Gmail } from "@personal-os/ui/components/svgs/gmail";
 import { GoogleCalendar } from "@personal-os/ui/components/svgs/googleCalendar";
 import { Notion } from "@personal-os/ui/components/svgs/notion";
 import { Trello } from "@personal-os/ui/components/svgs/trello";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { ConnectProviderCard } from "@/features/integrations/connect-provider-card";
 import { authClient } from "@/lib/auth-client";
 import type { IntegrationProvider } from "@/lib/oauth";
@@ -47,12 +46,6 @@ const onboardingProviders = [
     name: "Google Calendar",
   },
   {
-    description: "Lê e organiza e-mails para ajudar na triagem de atividades",
-    id: "gmail" as const,
-    logo: <Gmail aria-hidden="true" />,
-    name: "Gmail",
-  },
-  {
     description: "Notas e base de conhecimento para o operador",
     id: "notion" as const,
     logo: <Notion aria-hidden="true" />,
@@ -79,7 +72,7 @@ function OnboardingPage() {
 
   useEffect(() => {
     if (search.connected) {
-      void queryClient.invalidateQueries();
+      queryClient.invalidateQueries().catch(() => undefined);
     }
   }, [queryClient, search.connected]);
 
@@ -128,6 +121,23 @@ function OnboardingPage() {
     onSuccess: () => queryClient.invalidateQueries(),
   });
 
+  const handleFinish = useCallback(() => {
+    finish.mutate();
+  }, [finish]);
+
+  const handleSavePreferences = useCallback(
+    async (prefs: {
+      breakMinutes: string;
+      focusMinutes: string;
+      timezone: string;
+      workEnd: string;
+      workStart: string;
+    }) => {
+      await savePrefs.mutateAsync(prefs);
+    },
+    [savePrefs]
+  );
+
   return (
     <Onboarding
       integrationsContent={
@@ -142,6 +152,7 @@ function OnboardingPage() {
                 key={provider.id}
                 logo={provider.logo}
                 name={provider.name}
+                // biome-ignore lint/performance/noJsxPropsBind: provider-scoped disconnect
                 onDisconnect={() => disconnect.mutate(provider.id)}
                 provider={provider.id}
                 returnTo="/onboarding"
@@ -152,10 +163,8 @@ function OnboardingPage() {
       }
       isFinishing={finish.isPending}
       isSavingPreferences={savePrefs.isPending}
-      onFinish={() => finish.mutate()}
-      onSavePreferences={async (prefs) => {
-        await savePrefs.mutateAsync(prefs);
-      }}
+      onFinish={handleFinish}
+      onSavePreferences={handleSavePreferences}
     />
   );
 }

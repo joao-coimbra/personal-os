@@ -1,4 +1,3 @@
-import { Gmail } from "@personal-os/ui/components/svgs/gmail";
 import { GoogleCalendar } from "@personal-os/ui/components/svgs/googleCalendar";
 import { Notion } from "@personal-os/ui/components/svgs/notion";
 import { Trello } from "@personal-os/ui/components/svgs/trello";
@@ -650,7 +649,7 @@ export const CLI_ITEMS: CliItem[] = [
     status: "Beta",
     statusClassName:
       "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-300",
-    summary: "Puxa Trello, Calendar, Gmail e Notion",
+    summary: "Puxa Trello, Calendar e Notion",
   },
   {
     command: "triagem da inbox",
@@ -719,12 +718,6 @@ export const INTEGRATIONS: Integration[] = [
     description: "Agenda, blocos de foco e lembretes sincronizados.",
     id: "google-calendar",
     logo: <GoogleCalendar className="size-6" />,
-  },
-  {
-    connected: false,
-    description: "Lê e organiza e-mails para triagem de atividades.",
-    id: "gmail",
-    logo: <Gmail className="size-6" />,
   },
   {
     connected: false,

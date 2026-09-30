@@ -33,8 +33,8 @@ test.describe("login methods", () => {
     });
     await expect(integrations).toContainText("Trello");
     await expect(integrations).toContainText("Google Calendar");
-    await expect(integrations).toContainText("Gmail");
     await expect(integrations).toContainText("Notion");
+    await expect(integrations).not.toContainText("Gmail");
   });
 
   test("Google sign-in redirects to Google OAuth", async ({ page }) => {

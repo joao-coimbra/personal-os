@@ -7,22 +7,22 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type OnboardingStep = {
-  id: string;
-  value: number;
-  label: string;
-  title: string;
+export interface OnboardingStep {
   description: string;
-  optional?: boolean;
-};
-
-export type OnboardingChoice<TValue extends string = string> = {
-  value: TValue;
+  id: string;
   label: string;
+  optional?: boolean;
+  title: string;
+  value: number;
+}
+
+export interface OnboardingChoice<TValue extends string = string> {
   description: string;
   icon?: ReactNode;
+  label: string;
   recommended?: boolean;
-};
+  value: TValue;
+}
 
 export type FocusGoalValue =
   | "prioritize"
@@ -75,7 +75,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 export const SIDEBAR_STEP_DESCRIPTIONS: Record<string, string> = {
   ai: "Como pedir ajuda à IA.",
   goals: "Prioridades iniciais.",
-  integrations: "Trello, Calendar, Gmail e Notion.",
+  integrations: "Trello, Calendar e Notion.",
   preferences: "Timezone e blocos de foco.",
   welcome: "Visão geral do PersonalOS.",
 };
