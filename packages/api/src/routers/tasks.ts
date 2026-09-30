@@ -1,4 +1,9 @@
-import { classifyTasks, listTasks } from "@personal-os/capabilities";
+import {
+  classifyTasks,
+  listTaskLists,
+  listTasks,
+  moveTask,
+} from "@personal-os/capabilities";
 import { z } from "zod";
 
 import { protectedProcedure } from "../index";
@@ -24,5 +29,17 @@ export const tasksRouter = {
     .input(z.object({ boardId: z.string().optional() }).optional())
     .handler(async ({ context, input }) =>
       listTasks(capabilityEnv(context), input?.boardId)
+    ),
+
+  lists: protectedProcedure
+    .input(z.object({ boardId: z.string().optional() }).optional())
+    .handler(async ({ context, input }) =>
+      listTaskLists(capabilityEnv(context), input?.boardId)
+    ),
+
+  move: protectedProcedure
+    .input(z.object({ cardId: z.string().min(1), idList: z.string().min(1) }))
+    .handler(async ({ context, input }) =>
+      moveTask(capabilityEnv(context), input)
     ),
 };

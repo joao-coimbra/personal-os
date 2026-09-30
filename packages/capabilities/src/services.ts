@@ -6,6 +6,7 @@ import {
   getIntegrationToken,
   type IntegrationProvider,
   listBoardCards,
+  listBoardLists,
   listEvents,
   listMemberBoards,
   notionCreatePage,
@@ -210,6 +211,46 @@ export async function createTask(
     throw new Error("Trello API key is not configured on the server.");
   }
   return createCard(token, env.trelloApiKey, input);
+}
+
+async function resolveBoardId(
+  env: CapabilityEnv,
+  token: string,
+  boardId?: string
+): Promise<string | undefined> {
+  if (boardId) {
+    return boardId;
+  }
+  if (!env.trelloApiKey) {
+    return undefined;
+  }
+  const boards = await listMemberBoards(token, env.trelloApiKey);
+  return boards[0]?.id;
+}
+
+export async function listTaskLists(env: CapabilityEnv, boardId?: string) {
+  const token = await requireToken(env, "trello");
+  if (!env.trelloApiKey) {
+    throw new Error("Trello API key is not configured on the server.");
+  }
+  const targetBoardId = await resolveBoardId(env, token, boardId);
+  if (!targetBoardId) {
+    return [];
+  }
+  return listBoardLists(token, env.trelloApiKey, targetBoardId);
+}
+
+export async function moveTask(
+  env: CapabilityEnv,
+  input: { cardId: string; idList: string }
+) {
+  const token = await requireToken(env, "trello");
+  if (!env.trelloApiKey) {
+    throw new Error("Trello API key is not configured on the server.");
+  }
+  return updateCard(token, env.trelloApiKey, input.cardId, {
+    idList: input.idList,
+  });
 }
 
 export async function searchKnowledge(env: CapabilityEnv, query: string) {

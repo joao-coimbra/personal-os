@@ -52,6 +52,33 @@ export async function listBoardCards(
   return z.array(trelloCardSchema).parse(cards);
 }
 
+const trelloListSchema = z.object({
+  closed: z.boolean(),
+  id: z.string(),
+  name: z.string(),
+  pos: z.number(),
+});
+
+export type TrelloList = z.infer<typeof trelloListSchema>;
+
+export async function listBoardLists(
+  token: string,
+  apiKey: string,
+  boardId: string
+) {
+  const lists = await trelloFetch<unknown[]>(
+    `/boards/${boardId}/lists`,
+    token,
+    apiKey,
+    { method: "GET" }
+  );
+  return z
+    .array(trelloListSchema)
+    .parse(lists)
+    .filter((list) => !list.closed)
+    .toSorted((a, b) => a.pos - b.pos);
+}
+
 export async function createCard(
   token: string,
   apiKey: string,

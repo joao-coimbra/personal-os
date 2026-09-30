@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 
+import { TasksBoards } from "@/features/tasks/tasks-boards";
 import { orpc } from "@/utils/orpc";
 
 const TASK_FILTERS = ["today", "scheduled", "completed"] as const;
@@ -139,8 +140,11 @@ function QuadrantGrid({
 }
 
 function TasksPage() {
+<<<<<<< HEAD
   const { filter } = Route.useSearch();
   const tasks = useQuery(orpc.tasks.list.queryOptions({ input: {} }));
+=======
+>>>>>>> fba5668 (feat(tasks): dual Kanban/Gantt boards on /tasks with Trello move API)
   const classified = useQuery(orpc.tasks.classify.queryOptions());
 
   const filteredTasks = useMemo(
@@ -167,8 +171,9 @@ function TasksPage() {
     !(tasks.isLoading || tasks.error) && filteredTasks.length === 0;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
       <div>
+<<<<<<< HEAD
         <h1 className="font-semibold text-2xl">{title}</h1>
         <p className="text-muted-foreground text-sm">{subtitle}</p>
       </div>
@@ -204,11 +209,61 @@ function TasksPage() {
                 {t.quadrant ? (
                   <Badge variant="secondary">{t.quadrant}</Badge>
                 ) : null}
+=======
+        <h1 className="font-semibold text-2xl">Tasks</h1>
+        <p className="text-muted-foreground text-sm">
+          Quadro Kanban e Gantt do playbook — Trello + Eisenhower
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {(["do", "schedule", "delegate", "eliminate"] as const).map((q) => (
+          <Card key={q}>
+            <CardHeader>
+              <CardTitle className="text-sm capitalize">{q}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2">
+              {(byQuadrant.get(q) ?? []).slice(0, 4).map((t) => (
+                <div className="truncate text-sm" key={t.id}>
+                  {t.name}
+                </div>
+              ))}
+              {!byQuadrant.get(q)?.length && (
+                <p className="text-muted-foreground text-xs">—</p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <TasksBoards />
+
+      {classified.data && classified.data.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Classificação Eisenhower
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {classified.data.slice(0, 12).map((t) => (
+              <div
+                className="flex items-center justify-between gap-2 text-sm"
+                key={t.id}
+              >
+                <span className="truncate">{t.name}</span>
+                <div className="flex gap-1">
+                  {t.quadrant ? (
+                    <Badge variant="secondary">{t.quadrant}</Badge>
+                  ) : null}
+                  {t.label ? <Badge variant="outline">{t.label}</Badge> : null}
+                </div>
+>>>>>>> fba5668 (feat(tasks): dual Kanban/Gantt boards on /tasks with Trello move API)
               </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }
