@@ -1,8 +1,13 @@
+/** Social buttons bind provider-specific click handlers. */
+// biome-ignore-all lint/performance/noJsxPropsBind: provider onClick handlers
+// biome-ignore-all lint/complexity/noVoid: fire-and-forget authClient promises
+
 import { Button } from "@personal-os/ui/components/button";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import { getAppUrl } from "@/lib/server-url";
 
 type SocialProvider = "google" | "github";
 
@@ -23,9 +28,14 @@ function SocialButton({
     <Button
       className="w-full gap-2"
       onClick={() => {
+        const absoluteCallback = callbackURL.startsWith("http")
+          ? callbackURL
+          : getAppUrl(callbackURL);
         void authClient.signIn.social(
           {
-            callbackURL,
+            callbackURL: absoluteCallback,
+            errorCallbackURL: getAppUrl("/login"),
+            newUserCallbackURL: absoluteCallback,
             provider,
           },
           {

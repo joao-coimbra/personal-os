@@ -41,3 +41,16 @@ export function getApiUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return new URL(normalizedPath, getServerUrl()).toString();
 }
+
+/**
+ * Absolute URL on the web app origin (e.g. http://localhost:3001/onboarding).
+ * Better Auth resolves relative callbackURL against BETTER_AUTH_URL (:3000) —
+ * always pass absolute app URLs for post-login redirects.
+ */
+export function getAppUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}${normalizedPath}`;
+  }
+  return normalizedPath;
+}

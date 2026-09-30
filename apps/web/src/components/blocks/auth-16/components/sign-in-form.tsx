@@ -1,3 +1,7 @@
+/** Auth form binds provider/email handlers in JSX. */
+// biome-ignore-all lint/performance/noJsxPropsBind: form and social button handlers
+// biome-ignore-all lint/complexity/noVoid: fire-and-forget authClient promises
+
 import { Button } from "@personal-os/ui/components/button";
 import {
   Field,
@@ -12,6 +16,7 @@ import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import { getAppUrl } from "@/lib/server-url";
 
 import { AUTH16_PROVIDERS } from "./data";
 
@@ -25,7 +30,9 @@ export function SignInForm() {
     setPendingProvider(provider);
     void authClient.signIn.social(
       {
-        callbackURL: "/onboarding",
+        callbackURL: getAppUrl("/onboarding"),
+        errorCallbackURL: getAppUrl("/login"),
+        newUserCallbackURL: getAppUrl("/onboarding"),
         provider,
       },
       {
@@ -51,10 +58,10 @@ export function SignInForm() {
     setIsSendingLink(true);
     await authClient.signIn.magicLink(
       {
-        callbackURL: "/onboarding",
+        callbackURL: getAppUrl("/onboarding"),
         email: trimmed,
-        errorCallbackURL: "/login",
-        newUserCallbackURL: "/onboarding",
+        errorCallbackURL: getAppUrl("/login"),
+        newUserCallbackURL: getAppUrl("/onboarding"),
       },
       {
         onError: (error) => {
