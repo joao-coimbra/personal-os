@@ -6,6 +6,22 @@
     "ultracite/biome/tanstack"
   ],
   "files": {
-    "includes": ["!packages/ui/src/components/blocks/app-shell-18"]
-  }
+    "includes": [
+      "!packages/ui/src/components/blocks/app-shell-18",
+      "!packages/ui/src/components/blocks/ai-chat-2",
+      "!packages/ui/src/components/reui/code-block"
+    ]
+  },
+  "overrides": [
+    {
+      "includes": ["apps/web/src/features/operator/operator-chat.tsx"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noJsxPropsBind": "off"
+          }
+        }
+      }
+    }
+  ]
 }

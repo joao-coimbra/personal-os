@@ -1,34 +1,110 @@
+"use client";
+
 import { useChat } from "@ai-sdk/react";
-import { Bubble, BubbleContent } from "@personal-os/ui/components/bubble";
+import { AssistantPanel } from "@personal-os/ui/components/blocks/ai-chat-2/components/assistant-panel";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupTextarea,
-} from "@personal-os/ui/components/input-group";
-import {
-  Message,
-  MessageContent as MessageBody,
-  MessageHeader,
-} from "@personal-os/ui/components/message";
-import {
-  MessageScroller,
-  MessageScrollerContent,
-  MessageScrollerItem,
-  MessageScrollerProvider,
-  MessageScrollerViewport,
-} from "@personal-os/ui/components/message-scroller";
-import { DefaultChatTransport } from "ai";
-import { ArrowUpIcon, Loader2 } from "lucide-react";
-import {
-  type ChangeEvent,
-  type FormEvent,
-  type KeyboardEvent,
-  useState,
-} from "react";
-import { Streamdown } from "streamdown";
+  ASSISTANT_NAME,
+  type ChatMessageRecord,
+  type DraftPayload,
+  type MessagePart,
+  type TranscriptRecord,
+} from "@personal-os/ui/components/blocks/ai-chat-2/components/data";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { DefaultChatTransport, type UIMessage } from "ai";
+import { useMemo, useState } from "react";
+
+const TRAILING_NEWLINE_RE = /\n$/;
 
 import { getApiUrl } from "@/lib/server-url";
+import { useUiStore } from "@/stores/ui-store";
+import { client, orpc } from "@/utils/orpc";
+
+type PreferredAi = "anthropic" | "openai" | null;
+
+const CODE_FENCE_RE = /```([\w+-]*)\n?([\s\S]*?)```/g;
+const CODE_STRIP_RE = /```[\s\S]*?```/g;
+const PARAGRAPH_SPLIT_RE = /\n{2,}/;
+
+function messageText(message: UIMessage): string {
+  return (message.parts ?? [])
+    .flatMap((part) => (part.type === "text" ? [part.text] : []))
+    .join("")
+    .trim();
+}
+
+function textToParts(text: string): MessagePart[] {
+  const parts: MessagePart[] = [];
+  CODE_FENCE_RE.lastIndex = 0;
+  let last = 0;
+  let match = CODE_FENCE_RE.exec(text);
+  while (match) {
+    const before = text.slice(last, match.index).trim();
+    if (before) {
+      parts.push({ kind: "text", text: before });
+    }
+    const language = match[1] || "text";
+    parts.push({
+      code: match[2].replace(TRAILING_NEWLINE_RE, ""),
+      filename:
+        language === "markdown" || language === "md" ? "draft.md" : undefined,
+      kind: "code",
+      language,
+    });
+    last = match.index + match[0].length;
+    match = CODE_FENCE_RE.exec(text);
+  }
+  const rest = text.slice(last).trim();
+  if (rest) {
+    parts.push({ kind: "text", text: rest });
+  }
+  if (parts.length === 0) {
+    parts.push({ kind: "text", text: text || "…" });
+  }
+  return parts;
+}
+
+function textToDraft(text: string): DraftPayload {
+  const withoutCode = text.replace(CODE_STRIP_RE, "").trim();
+  const paragraphs = (withoutCode || text)
+    .split(PARAGRAPH_SPLIT_RE)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return {
+    heading: "Rascunho do operador",
+    paragraphs: paragraphs.length > 0 ? paragraphs : [text.trim() || ""],
+  };
+}
+
+function toChatRecords(messages: UIMessage[]): ChatMessageRecord[] {
+  const records: ChatMessageRecord[] = [];
+  for (const message of messages) {
+    if (message.role !== "user" && message.role !== "assistant") {
+      continue;
+    }
+    const text = messageText(message);
+    const toolParts = (message.parts ?? []).filter((part) =>
+      part.type.startsWith("tool-")
+    );
+    const parts = textToParts(text);
+    if (toolParts.length > 0 && message.role === "assistant") {
+      parts.unshift({
+        kind: "text",
+        text: "Consultando dados conectados…",
+      });
+    }
+    records.push({
+      at: "Agora",
+      draft:
+        message.role === "assistant" && text.trim().length > 0
+          ? textToDraft(text)
+          : undefined,
+      id: message.id,
+      parts,
+      role: message.role,
+    });
+  }
+  return records;
+}
 
 function resolveChatErrorMessage(error: unknown): string | null {
   if (error instanceof Error) {
@@ -40,151 +116,146 @@ function resolveChatErrorMessage(error: unknown): string | null {
   return null;
 }
 
-export function OperatorChat() {
-  const [input, setInput] = useState("");
-  const { error, messages, sendMessage, status } = useChat({
+export function OperatorChat({
+  onClose,
+  overlay = false,
+}: {
+  onClose?: () => void;
+  overlay?: boolean;
+}) {
+  const closeOperator = useUiStore((s) => s.closeOperator);
+  const operatorDraft = useUiStore((s) => s.operatorDraft);
+  const setOperatorDraft = useUiStore((s) => s.setOperatorDraft);
+  const queryClient = useQueryClient();
+  const prefs = useQuery(orpc.preferences.get.queryOptions());
+  const [localModelId, setLocalModelId] = useState<string | null>(null);
+
+  const setPreferred = useMutation({
+    mutationFn: (preferredAiProvider: PreferredAi) =>
+      client.preferences.setPreferredAiProvider({ preferredAiProvider }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: orpc.preferences.get.queryOptions().queryKey,
+      });
+    },
+  });
+
+  const preferred = prefs.data?.preferredAiProvider ?? null;
+  const modelId = localModelId ?? preferred ?? "google";
+
+  const { error, messages, sendMessage, setMessages, status, stop } = useChat({
     transport: new DefaultChatTransport({
       api: getApiUrl("/api/ai"),
       credentials: "include",
     }),
   });
-  const isSending = status === "submitted" || status === "streaming";
-  const errorMessage = resolveChatErrorMessage(error);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isSending) {
+  const isBusy = status === "submitted" || status === "streaming";
+  const errorMessage = resolveChatErrorMessage(error);
+  const records = useMemo(() => toChatRecords(messages), [messages]);
+  const showEmpty = records.length === 0 && !isBusy;
+
+  const transcript: TranscriptRecord = useMemo(() => {
+    if (errorMessage) {
+      return {
+        messages: [
+          ...records,
+          {
+            at: "Agora",
+            id: "error",
+            parts: [{ kind: "text", text: errorMessage }],
+            role: "assistant" as const,
+          },
+        ],
+      };
+    }
+    return { messages: records };
+  }, [errorMessage, records]);
+
+  const handleSend = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || isBusy) {
       return;
     }
-    sendMessage({ text });
-    setInput("");
+    sendMessage({ text: trimmed }).catch(() => undefined);
   };
 
-  const handlePromptKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      e.currentTarget.form?.requestSubmit();
+  const handleToggleDraft = (draft: DraftPayload) => {
+    if (
+      operatorDraft &&
+      operatorDraft.heading === draft.heading &&
+      operatorDraft.paragraphs.join("\n") === draft.paragraphs.join("\n")
+    ) {
+      setOperatorDraft(null);
+      return;
+    }
+    setOperatorDraft(draft);
+  };
+
+  const handleModelChange = (id: string) => {
+    setLocalModelId(id);
+    if (id === "anthropic" || id === "openai") {
+      setPreferred.mutate(id);
+      return;
+    }
+    if (id === "google") {
+      setPreferred.mutate(null);
     }
   };
 
-  const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
+  const handleRetry = () => {
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const prompt = lastUser ? messageText(lastUser) : "";
+    if (!prompt || isBusy) {
+      return;
+    }
+    const withoutTrailingAssistant = [...messages];
+    while (
+      withoutTrailingAssistant.length > 0 &&
+      withoutTrailingAssistant.at(-1)?.role === "assistant"
+    ) {
+      withoutTrailingAssistant.pop();
+    }
+    setMessages(withoutTrailingAssistant);
+    sendMessage({ text: prompt }).catch(() => undefined);
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+    stop();
+  };
+
+  const handleOpenThread = () => {
+    setMessages([]);
+  };
+
+  const handleStop = () => {
+    stop();
+  };
+
+  const handleArrived = () => undefined;
+
   return (
-    <MessageScrollerProvider>
-      <div className="flex h-full min-h-0 flex-col">
-        <MessageScroller className="min-h-0 flex-1">
-          <MessageScrollerViewport>
-            <MessageScrollerContent className="space-y-4 p-4">
-              {messages.length === 0 && (
-                <p className="text-muted-foreground text-sm">
-                  Pergunte sobre tarefas, agenda, prioridades ou peça para
-                  organizar seu dia.
-                </p>
-              )}
-              {messages.map((message) => {
-                const isUser = message.role === "user";
-                return (
-                  <MessageScrollerItem key={message.id}>
-                    <Message align={isUser ? "end" : "start"}>
-                      <MessageBody>
-                        <MessageHeader>
-                          {isUser ? "Você" : "PersonalOS AI"}
-                        </MessageHeader>
-                        <Bubble
-                          align={isUser ? "end" : "start"}
-                          variant={isUser ? "default" : "secondary"}
-                        >
-                          <BubbleContent>
-                            {message.parts?.map((part, index) => {
-                              const partKey = `${message.id}-${part.type}-${index}`;
-                              if (part.type === "text") {
-                                return (
-                                  <Streamdown
-                                    isAnimating={
-                                      status === "streaming" &&
-                                      message.role === "assistant"
-                                    }
-                                    key={partKey}
-                                  >
-                                    {part.text}
-                                  </Streamdown>
-                                );
-                              }
-                              if (part.type.startsWith("tool-")) {
-                                return (
-                                  <p
-                                    className="text-muted-foreground text-xs"
-                                    key={partKey}
-                                  >
-                                    ✓ Consultando dados conectados…
-                                  </p>
-                                );
-                              }
-                              return null;
-                            })}
-                          </BubbleContent>
-                        </Bubble>
-                      </MessageBody>
-                    </Message>
-                  </MessageScrollerItem>
-                );
-              })}
-              {status === "submitted" && (
-                <MessageScrollerItem>
-                  <Bubble variant="secondary">
-                    <BubbleContent className="flex items-center gap-2">
-                      <Loader2 className="size-3.5 animate-spin" />
-                      <span className="text-sm">Processando…</span>
-                    </BubbleContent>
-                  </Bubble>
-                </MessageScrollerItem>
-              )}
-              {errorMessage ? (
-                <MessageScrollerItem>
-                  <Bubble variant="secondary">
-                    <BubbleContent>
-                      <p className="text-destructive text-sm">{errorMessage}</p>
-                    </BubbleContent>
-                  </Bubble>
-                </MessageScrollerItem>
-              ) : null}
-            </MessageScrollerContent>
-          </MessageScrollerViewport>
-        </MessageScroller>
-        {/* biome-ignore lint/performance/noJsxPropsBind: form handlers are instance-local */}
-        <form className="border-t p-3" onSubmit={handleSubmit}>
-          <InputGroup>
-            <InputGroupTextarea
-              disabled={isSending}
-              // biome-ignore lint/performance/noJsxPropsBind: controlled textarea
-              onChange={handleInputChange}
-              // biome-ignore lint/performance/noJsxPropsBind: enter-to-submit
-              onKeyDown={handlePromptKeyDown}
-              placeholder="Mensagem para o operador…"
-              rows={2}
-              value={input}
-            />
-            <InputGroupAddon align="block-end" className="pt-1">
-              <InputGroupButton
-                className="ml-auto"
-                disabled={isSending || !input.trim()}
-                size="icon-sm"
-                type="submit"
-                variant="default"
-              >
-                {isSending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <ArrowUpIcon />
-                )}
-              </InputGroupButton>
-            </InputGroupAddon>
-          </InputGroup>
-        </form>
-      </div>
-    </MessageScrollerProvider>
+    <AssistantPanel
+      arrivingId={null}
+      drafted={operatorDraft !== null}
+      modelId={modelId}
+      onArrived={handleArrived}
+      onClose={onClose ?? closeOperator}
+      onModelChange={handleModelChange}
+      onNewChat={handleNewChat}
+      onOpenThread={handleOpenThread}
+      onRetry={handleRetry}
+      onSend={handleSend}
+      onStop={handleStop}
+      onToggleDraft={handleToggleDraft}
+      overlay={overlay}
+      showEmpty={showEmpty}
+      stopped={false}
+      stoppedIds={[]}
+      streaming={isBusy}
+      threadTitle={ASSISTANT_NAME}
+      transcript={transcript}
+    />
   );
 }
