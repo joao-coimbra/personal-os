@@ -27,7 +27,6 @@ import { Item, ItemGroup } from "@personal-os/ui/components/item";
 import { Frame, FramePanel } from "@personal-os/ui/components/reui/frame";
 import { IconStack } from "@personal-os/ui/components/reui/icon-stack";
 import { Spinner } from "@personal-os/ui/components/spinner";
-import { cn } from "cn";
 import { CircleCheckIcon, RocketIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -51,6 +50,9 @@ import {
 } from "./onboarding-stepper";
 
 const TOTAL_STEPS = ONBOARDING_STEPS.length;
+
+/** Shared column for every onboarding step — keeps width/height stable across transitions. */
+const STEP_COLUMN = "mx-auto flex w-full max-w-xl flex-col lg:min-h-[32rem]";
 
 const stepMotion = (direction: 1 | -1, reduce: boolean | null) =>
   reduce
@@ -109,7 +111,7 @@ function StepHeading({
   title: string;
 }) {
   return (
-    <div aria-live="polite" className="flex max-w-md flex-col gap-1.5">
+    <div aria-live="polite" className="flex flex-col gap-1.5">
       <h1 className="text-balance font-semibold text-foreground text-xl leading-7 sm:text-[1.375rem]">
         {title}
       </h1>
@@ -128,16 +130,8 @@ function WelcomeStep({
   title: string;
 }) {
   return (
-    <div aria-live="polite" className="flex flex-col gap-6">
-      <div className="flex max-w-2xl flex-col gap-2">
-        <h1 className="text-balance font-semibold text-foreground text-xl leading-7 sm:text-[1.375rem]">
-          {title}
-        </h1>
-        <p className="text-pretty text-muted-foreground text-sm leading-6">
-          {description}
-        </p>
-      </div>
-
+    <div aria-live="polite" className="flex flex-col gap-5">
+      <StepHeading description={description} title={title} />
       <HowItWorks embedded />
     </div>
   );
@@ -567,7 +561,7 @@ export function Onboarding({
               <AnimatePresence initial={false} mode="wait">
                 {isComplete ? (
                   <motion.div
-                    className="mx-auto flex w-full max-w-sm flex-col lg:min-h-[36rem]"
+                    className={STEP_COLUMN}
                     key="success"
                     {...motionProps}
                   >
@@ -583,12 +577,7 @@ export function Onboarding({
                   </motion.div>
                 ) : (
                   <motion.form
-                    className={cn(
-                      "mx-auto flex w-full flex-col lg:min-h-[36rem]",
-                      currentStepMeta.id === "welcome"
-                        ? "max-w-4xl"
-                        : "max-w-md"
-                    )}
+                    className={STEP_COLUMN}
                     key={currentStepMeta.id}
                     onSubmit={handleSubmit}
                     {...motionProps}

@@ -5,6 +5,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@personal-os/ui/components/tabs";
+import { cn } from "cn";
 import { useEffect, useState } from "react";
 
 import { AppShell } from "./app-shell";
@@ -33,7 +34,7 @@ const STEP_DWELL_MS = 6000;
 
 const DEFAULT_STEP = STEPS[0]!;
 
-export function Showcase() {
+export function Showcase({ compact = false }: { compact?: boolean }) {
   const [value, setValue] = useState(DEFAULT_STEP.value);
 
   /* Held while a reader is on the strip, so the step never moves out from under
@@ -84,23 +85,30 @@ export function Showcase() {
         onValueChange={setValue}
         value={value}
       >
-        {/* Three steps in one row from tablet up; phones stack. */}
         <TabsList
-          className="grid! items-stretch! h-auto! w-full @2xl:grid-cols-3 grid-cols-1 gap-0 rounded-none border-b bg-transparent p-0!"
+          className={cn(
+            "grid! items-stretch! h-auto! w-full gap-0 rounded-none border-b bg-transparent p-0!",
+            compact ? "grid-cols-3" : "@2xl:grid-cols-3 grid-cols-1"
+          )}
           variant="line"
         >
           {STEPS.map((item) => (
             <TabsTrigger
-              /* A cell rules off its right neighbour only; the last stays bare. */
-              className="h-auto! w-full flex-none cursor-pointer items-center justify-start rounded-none border-border! border-t @2xl:border-t-0! border-r-0 border-b-0 border-l-0 p-3 text-start transition-colors after:hidden first:border-t-0 hover:bg-muted/50 data-active:bg-muted! @2xl:[&:not(:last-child)]:border-r!"
+              className={cn(
+                "h-auto! w-full flex-none cursor-pointer items-center justify-start rounded-none border-border! border-r-0 border-b-0 border-l-0 text-start transition-colors after:hidden hover:bg-muted/50 data-active:bg-muted!",
+                compact
+                  ? "border-t-0 p-2.5 [&:not(:last-child)]:border-r!"
+                  : "border-t @2xl:border-t-0! p-3 first:border-t-0 @2xl:[&:not(:last-child)]:border-r!"
+              )}
               key={item.value}
               value={item.value}
             >
-              {/* Spans, not the Item slots: ItemContent and ItemTitle are divs and
-                  ItemDescription a <p>, none legal inside the trigger's button. */}
-              <span className="flex w-full items-start gap-2.5 px-3 py-2.5">
-                {/* Borderless 5% tint around a shadowed plate, the step chip.
-                    The radius is left to the tile: lyra and sera square it there. */}
+              <span
+                className={cn(
+                  "flex w-full items-start",
+                  compact ? "gap-2 px-1.5 py-1.5" : "gap-2.5 px-3 py-2.5"
+                )}
+              >
                 <IconTile
                   className="self-start border-0 bg-primary/5 [--icon-tile-inset:--spacing(1)]"
                   variant="frame"
@@ -113,8 +121,12 @@ export function Showcase() {
                   <span className="font-medium text-foreground">
                     {item.title}
                   </span>
-                  {/* Unclamped: a step loses its meaning the moment it is cut. */}
-                  <span className="text-wrap font-normal text-muted-foreground">
+                  <span
+                    className={cn(
+                      "text-wrap font-normal text-muted-foreground",
+                      compact && "line-clamp-2 text-xs leading-4"
+                    )}
+                  >
                     {item.description}
                   </span>
                 </span>
@@ -123,24 +135,26 @@ export function Showcase() {
           ))}
         </TabsList>
 
-        {/* Console on the sky field: a 16:10 frame cropped to the design's 576
-            of 800, so the shell runs off the bottom edge rather than stopping. */}
         <div className="@container w-full">
-          {/* Full bleed to the strip's own edges, so no radius is needed. Clip,
-              not hidden: a scroll port here lets focus slide the console away. */}
-          <div className="relative aspect-[20/9] overflow-clip">
-            <div className="absolute inset-x-0 top-0 aspect-[16/10]">
+          <div
+            className={cn(
+              "relative overflow-clip",
+              compact ? "aspect-[2/1] max-h-56" : "aspect-[20/9]"
+            )}
+          >
+            <div
+              className={cn(
+                "absolute inset-x-0 top-0",
+                compact ? "inset-y-0" : "aspect-[16/10]"
+              )}
+            >
               <FrameBackdrop />
-              {/* The glass plate sits outside the console, so it rounds wider than
-                  it does; derived from --radius, so a square style stays square. */}
               <div
                 aria-hidden="true"
                 className="absolute inset-x-[5cqw] top-[5cqw] -bottom-[4cqw] rounded-[calc(var(--radius)*1.5)] bg-white/10 ring-1 ring-white/25 ring-inset"
               />
               <div className="absolute inset-0">
                 <AppShell activeNavId={active.navId}>
-                  {/* Only the live panel is rendered: the primitive waits out a
-                      leaving panel's animations, and these loops never end. */}
                   {STEPS.filter((item) => item.value === value).map((item) => {
                     const View = WORKSPACES[item.value];
                     if (!View) {
@@ -153,8 +167,6 @@ export function Showcase() {
                         className="m-0 min-h-0 flex-1"
                         key={item.value}
                         onMouseDown={(event) => event.preventDefault()}
-                        /* Focus landing in the art has the browser scroll it into
-                           view, which drags the page to it. */
                         tabIndex={-1}
                         value={item.value}
                       >

@@ -42,7 +42,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     description:
-      "Um botão. Autorização oficial. Você pode pular e conectar depois.",
+      "Autorize com OAuth oficial. Você pode pular e conectar depois.",
     id: "integrations",
     label: "Integrações",
     optional: true,

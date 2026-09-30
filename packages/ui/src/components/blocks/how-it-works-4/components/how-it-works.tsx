@@ -15,7 +15,7 @@ export function HowItWorks({
         className="@container w-full"
       >
         <Card className="w-full gap-0 overflow-hidden p-0 shadow-none">
-          <Showcase />
+          <Showcase compact />
         </Card>
       </section>
     );
