@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
@@ -75,7 +76,7 @@ export const integrationConnection = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [
-    index("integration_connection_user_provider_idx").on(
+    uniqueIndex("integration_connection_user_provider_uidx").on(
       table.userId,
       table.provider
     ),

@@ -1,28 +1,64 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { safeOAuthReturnTo } from "@/lib/oauth";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/oauth/trello")({
   component: TrelloOAuthCallback,
   validateSearch: (
     search: Record<string, unknown>
-  ): { returnTo?: string; state?: string } => ({
+  ): {
+    displayMode?: "popup" | "page";
+    returnTo?: string;
+    state?: string;
+  } => ({
+    displayMode:
+      search.displayMode === "popup" || search.displayMode === "page"
+        ? search.displayMode
+        : undefined,
     returnTo: typeof search.returnTo === "string" ? search.returnTo : undefined,
     state: typeof search.state === "string" ? search.state : undefined,
   }),
 });
 
+function completeUrl(
+  returnTo: string | undefined,
+  displayMode: "popup" | "page" | undefined,
+  extras: Record<string, string>
+): string {
+  const safeReturnTo = safeOAuthReturnTo(returnTo);
+  if (displayMode === "popup") {
+    const url = new URL("/oauth/popup-done", window.location.origin);
+    url.searchParams.set("returnTo", safeReturnTo);
+    for (const [key, value] of Object.entries(extras)) {
+      url.searchParams.set(key, value);
+    }
+    return `${url.pathname}${url.search}`;
+  }
+  const url = new URL(safeReturnTo, window.location.origin);
+  for (const [key, value] of Object.entries(extras)) {
+    url.searchParams.set(key, value);
+  }
+  return `${url.pathname}${url.search}`;
+}
+
 function TrelloOAuthCallback() {
-  const { returnTo } = Route.useSearch();
+  const { displayMode, returnTo } = Route.useSearch();
   const [message, setMessage] = useState("Conectando Trello…");
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
     const params = new URLSearchParams(hash);
     const token = params.get("token");
-    if (!token) {
-      setMessage("Token do Trello não encontrado. Tente conectar novamente.");
+    const hashError = params.get("error");
+
+    if (hashError || !token) {
+      const error =
+        hashError ??
+        "Token do Trello não encontrado. Tente conectar novamente.";
+      setMessage(error);
+      window.location.assign(completeUrl(returnTo, displayMode, { error }));
       return;
     }
 
@@ -30,18 +66,19 @@ function TrelloOAuthCallback() {
       .connectToken({ provider: "trello", token })
       .then(() => {
         setMessage("Trello conectado.");
-        const target =
-          returnTo?.startsWith("/") && !returnTo.startsWith("//")
-            ? returnTo
-            : "/integrations";
-        window.location.assign(`${target}?connected=trello`);
+        window.location.assign(
+          completeUrl(returnTo, displayMode, { connected: "trello" })
+        );
       })
       .catch((error: unknown) => {
-        setMessage(
-          error instanceof Error ? error.message : "Falha ao conectar Trello"
+        const text =
+          error instanceof Error ? error.message : "Falha ao conectar Trello";
+        setMessage(text);
+        window.location.assign(
+          completeUrl(returnTo, displayMode, { error: text })
         );
       });
-  }, [returnTo]);
+  }, [displayMode, returnTo]);
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-100 via-background to-background px-6">

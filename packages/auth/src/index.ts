@@ -48,6 +48,15 @@ export function createAuth(
     ...(githubEnabled ? (["github"] as const) : []),
   ];
 
+  const localTrustedOrigins = isLocalHttp
+    ? [
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+      ]
+    : [];
+
   return betterAuth({
     account: {
       accountLinking: {
@@ -58,6 +67,9 @@ export function createAuth(
     advanced: {
       defaultCookieAttributes: {
         httpOnly: true,
+        // Local: web (:3001) and auth (:3000) are schemeful same-site on localhost,
+        // so Lax is settable via credentialed XHR and sent on the Google callback.
+        // Production (cross-site HTTPS): None+Secure.
         sameSite: isLocalHttp ? "lax" : "none",
         secure: !isLocalHttp,
       },
@@ -90,6 +102,11 @@ export function createAuth(
       },
     },
     emailAndPassword: { enabled: false },
+    // Stale OAuth retries (e.g. browser Back after access_denied) land on the app
+    // login page instead of the Better Auth error card on the API origin.
+    onAPIError: {
+      errorURL: `${env.CORS_ORIGIN}/login`,
+    },
     plugins: [
       magicLink({
         expiresIn: 60 * 10,
@@ -131,7 +148,9 @@ export function createAuth(
           }
         : {}),
     },
-    trustedOrigins: [env.CORS_ORIGIN, ...desktopOrigins],
+    trustedOrigins: [
+      ...new Set([env.CORS_ORIGIN, ...localTrustedOrigins, ...desktopOrigins]),
+    ],
   });
 }
 

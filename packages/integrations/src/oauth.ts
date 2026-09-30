@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { trelloFetch } from "./trello";
+
 export type OAuthProvider = "trello" | "google_calendar" | "gmail" | "notion";
 
 export interface OAuthEnv {
@@ -10,10 +12,16 @@ export interface OAuthEnv {
   notionClientId?: string;
   notionClientSecret?: string;
   serverOrigin: string;
+  /**
+   * Classic Power-Up API Key from Trello Auth tab (32 hex chars).
+   * Not the Atlassian OAuth 2.0 client id.
+   */
   trelloApiKey?: string;
 }
 
 export interface OAuthStatePayload {
+  /** `popup` → `/oauth/popup-done`; `page` (default) → `returnTo`. */
+  displayMode?: "popup" | "page";
   nonce: string;
   provider: OAuthProvider;
   returnTo: string;
@@ -89,7 +97,7 @@ export function buildAuthorizeUrl(
   provider: OAuthProvider,
   env: OAuthEnv,
   state: string,
-  returnTo = "/integrations"
+  options?: { displayMode?: "popup" | "page"; returnTo?: string }
 ): string {
   if (GOOGLE_PROVIDERS.has(provider)) {
     if (!env.googleClientId) {
@@ -122,18 +130,25 @@ export function buildAuthorizeUrl(
     return `https://api.notion.com/v1/oauth/authorize?${params.toString()}`;
   }
 
-  // Trello returns token in the fragment; callback lands on the web app.
+  // Classic Trello Auth: token returned in the URL fragment to the web app.
   if (!env.trelloApiKey) {
-    throw new Error("TRELLO_API_KEY is not configured.");
+    throw new Error(
+      "TRELLO_API_KEY is not configured (classic Power-Up API Key)."
+    );
   }
-  const returnUrl = `${env.appOrigin}/oauth/trello?state=${encodeURIComponent(state)}&returnTo=${encodeURIComponent(returnTo)}`;
+  const returnTo = options?.returnTo ?? "/integrations";
+  const displayMode = options?.displayMode ?? "page";
+  const returnUrl = new URL("/oauth/trello", env.appOrigin);
+  returnUrl.searchParams.set("state", state);
+  returnUrl.searchParams.set("returnTo", returnTo);
+  returnUrl.searchParams.set("displayMode", displayMode);
   const params = new URLSearchParams({
     callback_method: "fragment",
     expiration: "never",
     key: env.trelloApiKey,
     name: "PersonalOS",
     response_type: "token",
-    return_url: returnUrl,
+    return_url: returnUrl.toString(),
     scope: "read,write,account",
   });
   return `https://trello.com/1/authorize?${params.toString()}`;
@@ -180,7 +195,7 @@ export async function exchangeGoogleCode(
     );
     if (profile.ok) {
       const json = (await profile.json()) as { email?: string };
-      email = json.email;
+      ({ email } = json);
     }
   } catch {
     // optional label
@@ -232,20 +247,32 @@ export async function exchangeNotionCode(
   };
 }
 
+/**
+ * Live probe before marking Trello connected. Throws if key/token are rejected.
+ */
 export async function fetchTrelloMemberLabel(
   token: string,
   apiKey: string
-): Promise<string | undefined> {
-  const url = new URL("https://api.trello.com/1/members/me");
-  url.searchParams.set("key", apiKey);
-  url.searchParams.set("token", token);
-  const response = await fetch(url);
-  if (!response.ok) {
-    return;
+): Promise<string> {
+  try {
+    const data = await trelloFetch<{
+      fullName?: string;
+      username?: string;
+    }>("/members/me?fields=fullName,username", token, apiKey, {
+      method: "GET",
+    });
+    const label = data.fullName ?? data.username;
+    if (!label) {
+      throw new Error(
+        "Trello API responded but returned no member label. Reconnect Trello."
+      );
+    }
+    return label;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Trello token was issued but the Trello API rejected it (${detail}). Confirm TRELLO_API_KEY is the classic Power-Up API Key (Trello Auth tab), Allowed origins include your web app origin (e.g. http://localhost:3001), and try Conectar again.`,
+      { cause: error }
+    );
   }
-  const data = (await response.json()) as {
-    fullName?: string;
-    username?: string;
-  };
-  return data.fullName ?? data.username;
 }

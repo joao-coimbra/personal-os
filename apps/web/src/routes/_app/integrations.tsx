@@ -6,10 +6,13 @@ import { Trello } from "@personal-os/ui/components/svgs/trello";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import { toast } from "sonner";
 
 import { ConnectProviderCard } from "@/features/integrations/connect-provider-card";
-import type { IntegrationProvider } from "@/lib/oauth";
+import {
+  type IntegrationProvider,
+  parseOAuthPopupMessage,
+  reportOAuthOutcome,
+} from "@/lib/oauth";
 import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_app/integrations")({
@@ -72,14 +75,25 @@ function IntegrationsPage() {
   const search = Route.useSearch();
 
   useEffect(() => {
-    if (search.connected) {
-      toast.success(`${search.connected.replace("_", " ")} conectado`);
-      void queryClient.invalidateQueries();
+    if (!(search.connected || search.error)) {
+      return;
     }
-    if (search.error) {
-      toast.error(search.error);
-    }
+    reportOAuthOutcome(
+      { connected: search.connected, error: search.error },
+      queryClient
+    );
   }, [queryClient, search.connected, search.error]);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const data = parseOAuthPopupMessage(event);
+      if (data) {
+        reportOAuthOutcome(data, queryClient);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [queryClient]);
 
   const disconnect = useMutation({
     mutationFn: (provider: IntegrationProvider) =>

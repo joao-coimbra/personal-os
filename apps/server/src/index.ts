@@ -11,6 +11,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import Fastify from "fastify";
 
 import { type AiRequestBody, createOperatorStream } from "./ai/handler";
+import { sendAuthResponse } from "./auth-response";
 import { createContext } from "./context";
 import { desktopOrigins, ENV } from "./env.server";
 import { registerMcpRoutes } from "./mcp/register";
@@ -18,12 +19,24 @@ import { registerFileRoutes } from "./routes/files";
 import { registerOAuthRoutes } from "./routes/oauth";
 import { auth, db } from "./services";
 
+const localDevOrigins =
+  ENV.NODE_ENV === "development"
+    ? [
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+      ]
+    : [];
+
 const baseCorsConfig = {
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true,
   maxAge: 86_400,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  origin: [ENV.CORS_ORIGIN, ...desktopOrigins],
+  origin: [
+    ...new Set([ENV.CORS_ORIGIN, ...localDevOrigins, ...desktopOrigins]),
+  ],
 };
 
 const rpcHandler = new RPCHandler(appRouter, {
@@ -90,24 +103,19 @@ fastify.route({
   async handler(request, reply) {
     try {
       const url = new URL(request.url, `http://${request.headers.host}`);
-      const headers = new Headers();
-      Object.entries(request.headers).forEach(([key, value]) => {
-        if (value) {
-          headers.append(key, value.toString());
-        }
-      });
+      const headers = fromNodeHeaders(request.headers);
       const req = new Request(url.toString(), {
-        body: request.body ? JSON.stringify(request.body) : undefined,
+        ...(request.body ? { body: JSON.stringify(request.body) } : {}),
         headers,
         method: request.method,
       });
       const response = await auth.handler(req);
-      reply.status(response.status);
-      response.headers.forEach((value, key) => reply.header(key, value));
-      reply.send(response.body ? await response.text() : null);
+      // Forward status / Location / Set-Cookie without JSON-serializing empty
+      // redirect bodies as `null` (breaks Google OAuth callbacks in the browser).
+      await sendAuthResponse(reply, response);
     } catch (error) {
       fastify.log.error({ err: error }, "Authentication Error:");
-      reply.status(500).send({
+      return reply.status(500).send({
         code: "AUTH_FAILURE",
         error: "Internal authentication error",
       });

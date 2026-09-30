@@ -7,7 +7,8 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "check-types": "tsc -b"
+    "check-types": "tsc -b",
+    "test": "bun test src"
   },
   "dependencies": {
     "@personal-os/db": "workspace:*",
@@ -15,6 +16,7 @@
     "ai": "catalog:",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
+    "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

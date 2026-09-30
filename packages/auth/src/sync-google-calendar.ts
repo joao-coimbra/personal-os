@@ -11,6 +11,11 @@ export interface GoogleAccountTokens {
   userId: string;
 }
 
+/**
+ * Best-effort: copy Google login tokens into the calendar integration row.
+ * Must never throw — Better Auth account hooks run inside the OAuth callback;
+ * a failure here would turn a successful Google login into HTTP 500.
+ */
 export async function syncGoogleCalendarIntegration(
   db: Database,
   encryptionKey: string | undefined,
@@ -27,13 +32,20 @@ export async function syncGoogleCalendarIntegration(
     return;
   }
 
-  await saveIntegrationToken(db, {
-    accessToken: account.accessToken,
-    encryptionKey,
-    externalAccountLabel: "Google (login)",
-    provider: "google_calendar",
-    refreshToken: account.refreshToken ?? undefined,
-    scopes,
-    userId: account.userId,
-  });
+  try {
+    await saveIntegrationToken(db, {
+      accessToken: account.accessToken,
+      encryptionKey,
+      externalAccountLabel: "Google (login)",
+      provider: "google_calendar",
+      refreshToken: account.refreshToken ?? undefined,
+      scopes,
+      userId: account.userId,
+    });
+  } catch (error) {
+    console.error(
+      "[auth] Failed to sync Google Calendar integration after OAuth:",
+      error
+    );
+  }
 }

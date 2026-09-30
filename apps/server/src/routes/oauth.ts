@@ -5,10 +5,12 @@ import {
   exchangeGoogleCode,
   exchangeNotionCode,
   type OAuthProvider,
+  type OAuthStatePayload,
   saveIntegrationToken,
+  validateTrelloApiKey,
 } from "@personal-os/integrations";
 import { fromNodeHeaders } from "better-auth/node";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import { ENV } from "../env.server";
 import { auth, db } from "../services";
@@ -48,133 +50,238 @@ function parseProvider(raw: string): OAuthProvider {
   return raw as OAuthProvider;
 }
 
-export async function registerOAuthRoutes(fastify: FastifyInstance) {
-  fastify.get(
-    "/api/integrations/oauth/:provider/start",
-    async (request, reply) => {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(request.headers),
-      });
-      if (!session?.user) {
-        return reply.redirect(`${ENV.CORS_ORIGIN}/login`);
-      }
+/** Only same-origin relative paths; rejects protocol-relative `//…` open redirects. */
+function safeReturnTo(raw: string | undefined): string {
+  if (typeof raw === "string" && raw.startsWith("/") && !raw.startsWith("//")) {
+    return raw;
+  }
+  return "/integrations";
+}
 
-      const params = request.params as { provider: string };
-      const query = request.query as { returnTo?: string };
-      const provider = parseProvider(params.provider);
-      const returnTo = query.returnTo?.startsWith("/")
-        ? query.returnTo
-        : "/integrations";
+function appRedirect(
+  pathWithOptionalQuery: string,
+  extras: Record<string, string> = {}
+): string {
+  const path = safeReturnTo(pathWithOptionalQuery);
+  const url = new URL(path, ENV.CORS_ORIGIN);
+  for (const [key, value] of Object.entries(extras)) {
+    url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
 
-      const state = encodeOAuthState(
-        {
-          nonce: crypto.randomUUID(),
-          provider,
-          returnTo,
-          userId: session.user.id,
-        },
-        ENV.BETTER_AUTH_SECRET
-      );
+/**
+ * Popup mode lands on `/oauth/popup-done` (opener stays put).
+ * Page mode navigates the tab back to `returnTo`.
+ */
+function oauthCompleteRedirect(
+  returnTo: string,
+  displayMode: "popup" | "page" | undefined,
+  extras: Record<string, string>
+): string {
+  if (displayMode === "popup") {
+    return appRedirect("/oauth/popup-done", {
+      returnTo: safeReturnTo(returnTo),
+      ...extras,
+    });
+  }
+  return appRedirect(returnTo, extras);
+}
 
-      try {
-        const url = buildAuthorizeUrl(provider, oauthEnv(), state, returnTo);
-        return reply.redirect(url);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "OAuth is not configured";
-        return reply.redirect(
-          `${ENV.CORS_ORIGIN}${returnTo}?error=${encodeURIComponent(message)}`
-        );
-      }
-    }
+async function persistOAuthTokens(input: {
+  code: string;
+  provider: OAuthProvider;
+  userId: string;
+}): Promise<"saved"> {
+  const { code, provider, userId } = input;
+  const env = oauthEnv();
+
+  if (provider === "trello") {
+    // Classic Trello Auth returns the token in the fragment to /oauth/trello.
+    // Server callback is unused for Trello.
+    throw new Error(
+      "Trello uses classic Auth (fragment). Open Conectar again from Integrações."
+    );
+  }
+
+  if (provider === "google_calendar" || provider === "gmail") {
+    const tokens = await exchangeGoogleCode(code, env, provider);
+    await saveIntegrationToken(db, {
+      accessToken: tokens.accessToken,
+      encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
+      externalAccountLabel: tokens.email,
+      provider,
+      refreshToken: tokens.refreshToken,
+      scopes: tokens.scopes,
+      userId,
+    });
+    return "saved";
+  }
+
+  const tokens = await exchangeNotionCode(code, env);
+  await saveIntegrationToken(db, {
+    accessToken: tokens.accessToken,
+    encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
+    externalAccountLabel: tokens.workspaceName,
+    provider,
+    userId,
+  });
+  return "saved";
+}
+
+async function handleOAuthStart(request: FastifyRequest, reply: FastifyReply) {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(request.headers),
+  });
+  if (!session?.user) {
+    return reply.redirect(`${ENV.CORS_ORIGIN}/login`);
+  }
+
+  const params = request.params as { provider: string };
+  const query = request.query as {
+    displayMode?: string;
+    returnTo?: string;
+  };
+  const returnTo = safeReturnTo(query.returnTo);
+  const displayMode = query.displayMode === "popup" ? "popup" : "page";
+
+  let provider: OAuthProvider;
+  try {
+    provider = parseProvider(params.provider);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unsupported provider";
+    return reply.redirect(
+      oauthCompleteRedirect(returnTo, displayMode, { error: message })
+    );
+  }
+
+  const state = encodeOAuthState(
+    {
+      displayMode,
+      nonce: crypto.randomUUID(),
+      provider,
+      returnTo,
+      userId: session.user.id,
+    },
+    ENV.BETTER_AUTH_SECRET
   );
 
+  try {
+    if (provider === "trello") {
+      const key = oauthEnv().trelloApiKey;
+      if (!key) {
+        throw new Error(
+          "Trello não configurado. Defina TRELLO_API_KEY com a API Key clássica do Power-Up (aba Trello Auth em https://trello.com/power-ups/admin), e adicione a origem do web em Allowed origins."
+        );
+      }
+      await validateTrelloApiKey(key);
+    }
+    const url = buildAuthorizeUrl(provider, oauthEnv(), state, {
+      displayMode,
+      returnTo,
+    });
+    return reply.redirect(url);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "OAuth is not configured";
+    return reply.redirect(
+      oauthCompleteRedirect(returnTo, displayMode, { error: message })
+    );
+  }
+}
+
+async function handleOAuthCallback(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const params = request.params as { provider: string };
+  const query = request.query as {
+    code?: string;
+    error?: string;
+    state?: string;
+  };
+
+  let provider: OAuthProvider;
+  try {
+    provider = parseProvider(params.provider);
+  } catch {
+    return reply.redirect(
+      `${ENV.CORS_ORIGIN}/integrations?error=unsupported_provider`
+    );
+  }
+
+  if (provider === "trello") {
+    return reply.redirect(
+      `${ENV.CORS_ORIGIN}/integrations?error=${encodeURIComponent(
+        "Trello uses classic Auth. Use Conectar — the token returns to /oauth/trello."
+      )}`
+    );
+  }
+
+  if (query.error || !query.state) {
+    return reply.redirect(
+      `${ENV.CORS_ORIGIN}/integrations?error=${encodeURIComponent(query.error ?? "missing_state")}`
+    );
+  }
+
+  let payload: OAuthStatePayload;
+  try {
+    payload = decodeOAuthState(query.state, ENV.BETTER_AUTH_SECRET);
+  } catch {
+    return reply.redirect(
+      `${ENV.CORS_ORIGIN}/integrations?error=invalid_state`
+    );
+  }
+
+  if (payload.provider !== provider) {
+    return reply.redirect(
+      `${ENV.CORS_ORIGIN}/integrations?error=provider_mismatch`
+    );
+  }
+
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(request.headers),
+  });
+  if (!session?.user || session.user.id !== payload.userId) {
+    return reply.redirect(`${ENV.CORS_ORIGIN}/login`);
+  }
+
+  if (!query.code) {
+    return reply.redirect(
+      oauthCompleteRedirect(payload.returnTo, payload.displayMode, {
+        error: "missing_code",
+      })
+    );
+  }
+
+  try {
+    await persistOAuthTokens({
+      code: query.code,
+      provider,
+      userId: session.user.id,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "oauth_exchange_failed";
+    return reply.redirect(
+      oauthCompleteRedirect(payload.returnTo, payload.displayMode, {
+        error: message,
+      })
+    );
+  }
+
+  return reply.redirect(
+    oauthCompleteRedirect(payload.returnTo, payload.displayMode, {
+      connected: provider,
+    })
+  );
+}
+
+export function registerOAuthRoutes(fastify: FastifyInstance) {
+  fastify.get("/api/integrations/oauth/:provider/start", handleOAuthStart);
   fastify.get(
     "/api/integrations/oauth/:provider/callback",
-    async (request, reply) => {
-      const params = request.params as { provider: string };
-      const query = request.query as {
-        code?: string;
-        error?: string;
-        state?: string;
-      };
-      const provider = parseProvider(params.provider);
-
-      if (query.error || !query.state) {
-        return reply.redirect(
-          `${ENV.CORS_ORIGIN}/integrations?error=${encodeURIComponent(query.error ?? "missing_state")}`
-        );
-      }
-
-      let payload;
-      try {
-        payload = decodeOAuthState(query.state, ENV.BETTER_AUTH_SECRET);
-      } catch {
-        return reply.redirect(
-          `${ENV.CORS_ORIGIN}/integrations?error=invalid_state`
-        );
-      }
-
-      if (payload.provider !== provider) {
-        return reply.redirect(
-          `${ENV.CORS_ORIGIN}/integrations?error=provider_mismatch`
-        );
-      }
-
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(request.headers),
-      });
-      if (!session?.user || session.user.id !== payload.userId) {
-        return reply.redirect(`${ENV.CORS_ORIGIN}/login`);
-      }
-
-      if (!query.code) {
-        return reply.redirect(
-          `${ENV.CORS_ORIGIN}${payload.returnTo}?error=missing_code`
-        );
-      }
-
-      try {
-        if (provider === "google_calendar" || provider === "gmail") {
-          const tokens = await exchangeGoogleCode(
-            query.code,
-            oauthEnv(),
-            provider
-          );
-          await saveIntegrationToken(db, {
-            accessToken: tokens.accessToken,
-            encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
-            externalAccountLabel: tokens.email,
-            provider,
-            refreshToken: tokens.refreshToken,
-            scopes: tokens.scopes,
-            userId: session.user.id,
-          });
-        } else if (provider === "notion") {
-          const tokens = await exchangeNotionCode(query.code, oauthEnv());
-          await saveIntegrationToken(db, {
-            accessToken: tokens.accessToken,
-            encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
-            externalAccountLabel: tokens.workspaceName,
-            provider,
-            userId: session.user.id,
-          });
-        } else {
-          return reply.redirect(
-            `${ENV.CORS_ORIGIN}/oauth/trello?state=${encodeURIComponent(query.state)}`
-          );
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "oauth_exchange_failed";
-        return reply.redirect(
-          `${ENV.CORS_ORIGIN}${payload.returnTo}?error=${encodeURIComponent(message)}`
-        );
-      }
-
-      return reply.redirect(
-        `${ENV.CORS_ORIGIN}${payload.returnTo}?connected=${provider}`
-      );
-    }
+    handleOAuthCallback
   );
 }
