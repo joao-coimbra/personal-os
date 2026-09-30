@@ -1,5 +1,7 @@
 # PersonalOS — README Acadêmico (Entrega)
 
+Documentação formal de entrega (parte teórica + prática): [`docs/entrega/PersonalOS-Documentacao-Entrega.pdf`](./docs/entrega/PersonalOS-Documentacao-Entrega.pdf) (fonte regenerável em `.md`; `bun run docs:entrega-pdf`).
+
 ## 1. Descrição do sistema
 
 **PersonalOS** é um sistema operacional pessoal que integra **tarefas (Trello)**, **agenda (Google Calendar)**, **notas (Notion, P2)** e um **operador de IA** (Vercel AI SDK + Gemini) para planejar o dia, classificar prioridades (matriz de Eisenhower), criar blocos de foco e apoiar comunicação profissional. O dashboard reúne visão do dia, tarefas atrasadas e próximos eventos.

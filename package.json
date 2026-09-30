@@ -51,6 +51,7 @@
     "dev:server": "turbo run dev -F server --",
     "dev:vercel": "bunx vercel dev -L",
     "dev:web": "turbo run dev -F web --",
+    "docs:entrega-pdf": "bash scripts/build-entrega-pdf.sh",
     "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
     "env:preview": "tsx scripts/sync-vercel-env.ts preview",
     "env:production": "tsx scripts/sync-vercel-env.ts production",

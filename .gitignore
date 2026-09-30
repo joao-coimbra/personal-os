@@ -59,3 +59,7 @@ coverage
 .cache
 tmp
 temp
+
+# Generated delivery HTML (PDF is committed)
+docs/entrega/PersonalOS-Documentacao-Entrega.html
+docs/entrega/.cover-fragment.html
