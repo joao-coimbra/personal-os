@@ -29,7 +29,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         name: "description",
       },
     ],
-    links: [{ href: "/favicon.ico", rel: "icon" }],
+    links: [{ href: "/logo-mark.svg", rel: "icon", type: "image/svg+xml" }],
   }),
 });
 

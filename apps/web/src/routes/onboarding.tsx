@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { CalendarDays, Kanban, NotebookPen, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-
+import { PersonalOsLogo } from "@/components/personal-os-logo";
 import { ConnectProviderCard } from "@/features/integrations/connect-provider-card";
 import { authClient } from "@/lib/auth-client";
 import { client, orpc } from "@/utils/orpc";
@@ -102,9 +102,11 @@ function OnboardingPage() {
       <div className="mx-auto flex min-h-svh max-w-3xl flex-col justify-center px-6 py-12">
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>
-            <p className="font-semibold text-sm uppercase tracking-[0.2em]">
-              PersonalOS
-            </p>
+            <PersonalOsLogo
+              className="mb-3"
+              markClassName="size-8"
+              withWordmark
+            />
             <h1 className="mt-2 font-semibold text-3xl tracking-tight">
               Seu sistema operacional pessoal
             </h1>

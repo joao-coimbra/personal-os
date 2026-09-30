@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { CommandPalette } from "@/components/command-palette";
+import { PersonalOsLogo } from "@/components/personal-os-logo";
 import { OperatorSheet } from "@/features/operator/operator-sheet";
 import { useUiStore } from "@/stores/ui-store";
 import { ModeToggle } from "./mode-toggle";
@@ -57,9 +58,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader className="border-b px-2 py-3">
-          <div className="flex items-center gap-2 px-2 font-semibold text-sm">
-            <Sparkles className="size-4" />
-            <span>PersonalOS</span>
+          <div className="px-2">
+            <PersonalOsLogo markClassName="size-6" withWordmark />
           </div>
         </SidebarHeader>
         <SidebarContent>
