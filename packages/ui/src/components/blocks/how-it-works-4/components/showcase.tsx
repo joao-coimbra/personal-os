@@ -138,11 +138,8 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
         <div className="@container w-full">
           <div
             className={cn(
-              "relative w-full overflow-clip",
-              // Tall fixed viewport (user: raise preview height). Avoid
-              // aspect+[max-h-60] — that shrinks used width vs @container cqw
-              // and clips AppShell on the right on the wide welcome card.
-              compact ? "h-80 sm:h-96 lg:h-[28rem]" : "aspect-[20/9]"
+              "relative overflow-clip",
+              compact ? "aspect-[16/9] max-h-60" : "aspect-[20/9]"
             )}
           >
             <div
@@ -157,7 +154,7 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
                 className="absolute inset-x-[5cqw] top-[5cqw] -bottom-[4cqw] rounded-[calc(var(--radius)*1.5)] bg-white/10 ring-1 ring-white/25 ring-inset"
               />
               <div className="absolute inset-0">
-                <AppShell activeNavId={active.navId} compact={compact}>
+                <AppShell activeNavId={active.navId}>
                   {STEPS.filter((item) => item.value === value).map((item) => {
                     const View = WORKSPACES[item.value];
                     if (!View) {
