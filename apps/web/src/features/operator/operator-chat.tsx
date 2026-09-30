@@ -1,3 +1,5 @@
+/** Operator chat adapts ReUI AssistantPanel over PersonalOS /api/ai streaming. */
+// biome-ignore-all lint/performance/noJsxPropsBind: AssistantPanel adapters over useChat
 "use client";
 
 import { useChat } from "@ai-sdk/react";

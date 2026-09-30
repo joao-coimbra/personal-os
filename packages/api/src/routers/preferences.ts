@@ -47,7 +47,7 @@ export const preferencesRouter = {
   }),
 
   setPreferredAiProvider: protectedProcedure
-    .input(z.object({ preferredAiProvider: preferredAiSchema }))
+    .input(z.object({ preferredAiProvider: preferredAiSchema.nullable() }))
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
       const rows = await context.db
