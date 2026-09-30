@@ -49,16 +49,18 @@ const GMAIL_SCOPES = [
 ].join(" ");
 
 /**
- * Must match scopes enabled on the Atlassian OAuth 2.0 client.
- * `offline_access` is required to receive a refresh token.
- * `read:member:trello` is required for `/members/me` (account label + board listing).
+ * Must match scopes enabled on the Atlassian/Trello OAuth 2.0 client.
+ * `offline_access` is required to receive a refresh token (not shown in the console table).
  */
 export const TRELLO_OAUTH_SCOPES = [
   "read:member:trello",
+  "write:member:trello",
   "read:board:trello",
   "write:board:trello",
   "write:board:membership:trello",
   "read:organization:trello",
+  "write:organization:trello",
+  "write:organization:membership:trello",
   "offline_access",
 ].join(" ");
 
@@ -371,7 +373,7 @@ export async function fetchTrelloMemberLabel(
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 200);
     throw new Error(
-      `Trello access token was issued but the Trello API rejected it (${response.status}${detail ? `: ${detail}` : ""}). Confirm the OAuth 2.0 app is from trello.com/power-ups/admin (or apps/admin), has the Trello scopes enabled (including read:member:trello), then reconnect.`
+      `Trello access token was issued but the Trello API rejected it (${response.status}${detail ? `: ${detail}` : ""}). Scopes in the Trello console alone are not enough — disconnect and Conectar again so a new token is issued (old tokens keep their original scopes). If it still fails, the OAuth 2.0 client may not be usable for REST yet; check that this app is under trello.com/power-ups/admin (or apps/admin) and try again after restarting the API.`
     );
   }
   const data = (await response.json()) as {
