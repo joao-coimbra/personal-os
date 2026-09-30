@@ -186,15 +186,24 @@ async function handleOAuthStart(request: FastifyRequest, reply: FastifyReply) {
   );
 
   try {
-    if (provider === "trello") {
-      const env = oauthEnv();
-      if (!(env.trelloClientId && env.trelloClientSecret)) {
-        throw new Error(
-          "Trello OAuth não configurado. Defina TRELLO_API_KEY (client id) e TRELLO_API_SECRET, e registre a URL de retorno no console Atlassian."
-        );
-      }
+    const env = oauthEnv();
+    if (
+      provider === "trello" &&
+      !(env.trelloClientId && env.trelloClientSecret)
+    ) {
+      throw new Error(
+        "Trello OAuth não configurado. Defina TRELLO_API_KEY (client id) e TRELLO_API_SECRET, e registre a URL de retorno no console Atlassian."
+      );
     }
-    const url = buildAuthorizeUrl(provider, oauthEnv(), state, {
+    if (
+      provider === "notion" &&
+      !(env.notionClientId && env.notionClientSecret)
+    ) {
+      throw new Error(
+        `Notion OAuth não configurado. Defina NOTION_CLIENT_ID e NOTION_CLIENT_SECRET, e registre exatamente esta Redirect URI no console Notion: ${env.serverOrigin}/api/integrations/oauth/notion/callback`
+      );
+    }
+    const url = buildAuthorizeUrl(provider, env, state, {
       codeChallenge: pkce?.codeChallenge,
     });
     return reply.redirect(url);

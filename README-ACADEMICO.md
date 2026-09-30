@@ -26,8 +26,8 @@ Integrações externas: **Trello**, **Google Calendar**, **Gmail**, **Notion** v
 Redirects de Connect:
 - Google Calendar: `{SERVER}/api/integrations/oauth/google_calendar/callback`
 - Gmail: `{SERVER}/api/integrations/oauth/gmail/callback` (escopo `gmail.readonly`)
-- Notion: `{SERVER}/api/integrations/oauth/notion/callback`
-- Trello: `{WEB}/oauth/trello`
+- Notion: `{SERVER}/api/integrations/oauth/notion/callback` — em local: `http://localhost:3000/api/integrations/oauth/notion/callback` (precisa do segmento `/oauth/`; sem ele o Notion responde “Missing or invalid redirect_uri”)
+- Trello: `{SERVER}/api/integrations/oauth/trello/callback`
 
 ## 3. Fluxo de uso (golden path)
 

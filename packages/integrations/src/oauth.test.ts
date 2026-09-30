@@ -136,6 +136,16 @@ describe("authorize urls", () => {
     expect(urls.gmail).toContain("gmail.readonly");
     expect(urls.gmail).not.toContain("calendar.events");
     expect(urls.notion).toContain("https://api.notion.com/v1/oauth/authorize?");
+    expect(urls.notion).toContain(
+      encodeURIComponent(
+        "http://localhost:3000/api/integrations/oauth/notion/callback"
+      )
+    );
+    expect(urls.notion).not.toContain(
+      encodeURIComponent(
+        "http://localhost:3000/api/integrations/notion/callback"
+      )
+    );
     expect(urls.gmail).toContain(
       encodeURIComponent(
         "http://localhost:3000/api/integrations/oauth/gmail/callback"

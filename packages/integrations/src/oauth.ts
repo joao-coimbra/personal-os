@@ -152,10 +152,11 @@ export function buildAuthorizeUrl(
     if (!env.notionClientId) {
       throw new Error("NOTION_CLIENT_ID is not configured.");
     }
+    const notionRedirectUri = callbackUrl(env.serverOrigin, provider);
     const params = new URLSearchParams({
       client_id: env.notionClientId,
       owner: "user",
-      redirect_uri: callbackUrl(env.serverOrigin, provider),
+      redirect_uri: notionRedirectUri,
       response_type: "code",
       state,
     });
@@ -263,7 +264,11 @@ export async function exchangeNotionCode(
     method: "POST",
   });
   if (!response.ok) {
-    throw new Error(`Notion token exchange failed: ${response.status}`);
+    const detail = (await response.text()).slice(0, 200);
+    const expectedRedirect = callbackUrl(env.serverOrigin, "notion");
+    throw new Error(
+      `Notion token exchange failed: ${response.status}${detail ? ` ${detail}` : ""}. Confirme a Redirect URI no console Notion: ${expectedRedirect}`
+    );
   }
   const data = (await response.json()) as {
     access_token: string;
