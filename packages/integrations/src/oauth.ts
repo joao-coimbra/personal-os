@@ -1,4 +1,9 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 
 export type OAuthProvider = "trello" | "google_calendar" | "gmail" | "notion";
 
@@ -10,10 +15,15 @@ export interface OAuthEnv {
   notionClientId?: string;
   notionClientSecret?: string;
   serverOrigin: string;
-  trelloApiKey?: string;
+  /** Atlassian OAuth 2.0 client id (Developer Console). */
+  trelloClientId?: string;
+  /** Atlassian OAuth 2.0 client secret (confidential clients). */
+  trelloClientSecret?: string;
 }
 
 export interface OAuthStatePayload {
+  /** PKCE verifier for Atlassian/Trello OAuth 2.0. */
+  codeVerifier?: string;
   nonce: string;
   provider: OAuthProvider;
   returnTo: string;
@@ -34,6 +44,18 @@ const GOOGLE_CALENDAR_SCOPES = [
 const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/userinfo.email",
+].join(" ");
+
+/**
+ * Must match scopes enabled on the Atlassian OAuth 2.0 client.
+ * `offline_access` is required to receive a refresh token.
+ */
+export const TRELLO_OAUTH_SCOPES = [
+  "read:board:trello",
+  "write:board:trello",
+  "write:board:membership:trello",
+  "read:organization:trello",
+  "offline_access",
 ].join(" ");
 
 const GOOGLE_PROVIDERS = new Set<OAuthProvider>(["google_calendar", "gmail"]);
@@ -85,11 +107,23 @@ function googleScopesFor(provider: OAuthProvider): string {
   return GOOGLE_CALENDAR_SCOPES;
 }
 
+/** Creates a PKCE verifier/challenge pair (S256) for Atlassian OAuth 2.0. */
+export function createPkcePair(): {
+  codeChallenge: string;
+  codeVerifier: string;
+} {
+  const codeVerifier = randomBytes(32).toString("base64url");
+  const codeChallenge = createHash("sha256")
+    .update(codeVerifier)
+    .digest("base64url");
+  return { codeChallenge, codeVerifier };
+}
+
 export function buildAuthorizeUrl(
   provider: OAuthProvider,
   env: OAuthEnv,
   state: string,
-  returnTo = "/integrations"
+  options?: { codeChallenge?: string }
 ): string {
   if (GOOGLE_PROVIDERS.has(provider)) {
     if (!env.googleClientId) {
@@ -122,21 +156,24 @@ export function buildAuthorizeUrl(
     return `https://api.notion.com/v1/oauth/authorize?${params.toString()}`;
   }
 
-  // Trello returns token in the fragment; callback lands on the web app.
-  if (!env.trelloApiKey) {
-    throw new Error("TRELLO_API_KEY is not configured.");
+  // Atlassian OAuth 2.0 (confidential + PKCE) for Trello.
+  if (!env.trelloClientId) {
+    throw new Error("TRELLO_API_KEY (OAuth client id) is not configured.");
   }
-  const returnUrl = `${env.appOrigin}/oauth/trello?state=${encodeURIComponent(state)}&returnTo=${encodeURIComponent(returnTo)}`;
+  if (!options?.codeChallenge) {
+    throw new Error("Trello OAuth requires a PKCE code challenge.");
+  }
   const params = new URLSearchParams({
-    callback_method: "fragment",
-    expiration: "never",
-    key: env.trelloApiKey,
-    name: "PersonalOS",
-    response_type: "token",
-    return_url: returnUrl,
-    scope: "read,write,account",
+    client_id: env.trelloClientId,
+    code_challenge: options.codeChallenge,
+    code_challenge_method: "S256",
+    prompt: "consent",
+    redirect_uri: callbackUrl(env.serverOrigin, "trello"),
+    response_type: "code",
+    scope: TRELLO_OAUTH_SCOPES,
+    state,
   });
-  return `https://trello.com/1/authorize?${params.toString()}`;
+  return `https://auth.atlassian.com/authorize?${params.toString()}`;
 }
 
 export async function exchangeGoogleCode(
@@ -180,7 +217,7 @@ export async function exchangeGoogleCode(
     );
     if (profile.ok) {
       const json = (await profile.json()) as { email?: string };
-      email = json.email;
+      ({ email } = json);
     }
   } catch {
     // optional label
@@ -232,14 +269,101 @@ export async function exchangeNotionCode(
   };
 }
 
+export async function exchangeTrelloCode(
+  code: string,
+  codeVerifier: string,
+  env: OAuthEnv
+): Promise<{
+  accessToken: string;
+  expiresIn?: number;
+  refreshToken?: string;
+  scopes?: string;
+}> {
+  if (!(env.trelloClientId && env.trelloClientSecret)) {
+    throw new Error(
+      "Trello OAuth credentials are not configured (TRELLO_API_KEY + TRELLO_API_SECRET)."
+    );
+  }
+  const response = await fetch("https://auth.atlassian.com/oauth/token", {
+    body: JSON.stringify({
+      client_id: env.trelloClientId,
+      client_secret: env.trelloClientSecret,
+      code,
+      code_verifier: codeVerifier,
+      grant_type: "authorization_code",
+      redirect_uri: callbackUrl(env.serverOrigin, "trello"),
+    }),
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    method: "POST",
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(
+      `Trello token exchange failed: ${response.status}${detail ? ` ${detail}` : ""}`
+    );
+  }
+  const data = (await response.json()) as {
+    access_token: string;
+    expires_in?: number;
+    refresh_token?: string;
+    scope?: string;
+  };
+  return {
+    accessToken: data.access_token,
+    expiresIn: data.expires_in,
+    refreshToken: data.refresh_token,
+    scopes: data.scope,
+  };
+}
+
+export async function refreshTrelloAccessToken(
+  refreshToken: string,
+  env: OAuthEnv
+): Promise<{
+  accessToken: string;
+  expiresIn?: number;
+  refreshToken?: string;
+  scopes?: string;
+}> {
+  if (!(env.trelloClientId && env.trelloClientSecret)) {
+    throw new Error(
+      "Trello OAuth credentials are not configured (TRELLO_API_KEY + TRELLO_API_SECRET)."
+    );
+  }
+  const response = await fetch("https://auth.atlassian.com/oauth/token", {
+    body: JSON.stringify({
+      client_id: env.trelloClientId,
+      client_secret: env.trelloClientSecret,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    }),
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`Trello token refresh failed: ${response.status}`);
+  }
+  const data = (await response.json()) as {
+    access_token: string;
+    expires_in?: number;
+    refresh_token?: string;
+    scope?: string;
+  };
+  return {
+    accessToken: data.access_token,
+    expiresIn: data.expires_in,
+    refreshToken: data.refresh_token,
+    scopes: data.scope,
+  };
+}
+
 export async function fetchTrelloMemberLabel(
-  token: string,
-  apiKey: string
+  accessToken: string
 ): Promise<string | undefined> {
-  const url = new URL("https://api.trello.com/1/members/me");
-  url.searchParams.set("key", apiKey);
-  url.searchParams.set("token", token);
-  const response = await fetch(url);
+  const response = await fetch(
+    "https://api.trello.com/1/members/me?fields=fullName,username",
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
   if (!response.ok) {
     return;
   }

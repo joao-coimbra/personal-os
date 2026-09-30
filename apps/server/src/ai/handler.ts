@@ -24,6 +24,7 @@ export interface AiHandlerConfig {
   db: Database;
   encryptionKey: string;
   trelloApiKey?: string;
+  trelloApiSecret?: string;
   userId: string;
 }
 
@@ -42,6 +43,7 @@ export async function createOperatorStream(
     db: config.db,
     encryptionKey: config.encryptionKey,
     trelloApiKey: config.trelloApiKey,
+    trelloApiSecret: config.trelloApiSecret,
     userId: config.userId,
   });
 

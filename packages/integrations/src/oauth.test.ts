@@ -3,10 +3,12 @@ import { describe, expect, test } from "bun:test";
 import { decryptSecret, encryptSecret } from "./crypto";
 import {
   buildAuthorizeUrl,
+  createPkcePair,
   decodeOAuthState,
   encodeOAuthState,
   type OAuthEnv,
   type OAuthProvider,
+  TRELLO_OAUTH_SCOPES,
 } from "./oauth";
 
 const SECRET = "test-better-auth-secret-for-oauth-state";
@@ -73,7 +75,8 @@ describe("authorize urls", () => {
     notionClientId: "notion-client",
     notionClientSecret: "notion-secret",
     serverOrigin: "http://localhost:3000",
-    trelloApiKey: "trello-key",
+    trelloClientId: "trello-client",
+    trelloClientSecret: "trello-secret",
   };
 
   const providers: OAuthProvider[] = [
@@ -84,15 +87,30 @@ describe("authorize urls", () => {
   ];
 
   test("builds distinct authorize URLs for every provider", () => {
+    const { codeChallenge, codeVerifier } = createPkcePair();
+    expect(codeVerifier.length).toBeGreaterThan(20);
+    expect(codeChallenge.length).toBeGreaterThan(20);
+
     const urls = Object.fromEntries(
       providers.map((provider) => [
         provider,
-        buildAuthorizeUrl(provider, env, "state-token"),
+        buildAuthorizeUrl(provider, env, "state-token", {
+          codeChallenge,
+        }),
       ])
     );
 
-    expect(urls.trello).toContain("https://trello.com/1/authorize?");
-    expect(urls.trello).toContain("key=trello-key");
+    expect(urls.trello).toContain("https://auth.atlassian.com/authorize?");
+    expect(urls.trello).toContain("client_id=trello-client");
+    expect(urls.trello).toContain("code_challenge_method=S256");
+    expect(urls.trello).toContain("read%3Aboard%3Atrello");
+    expect(urls.trello).toContain("offline_access");
+    expect(TRELLO_OAUTH_SCOPES).toContain("offline_access");
+    expect(urls.trello).toContain(
+      encodeURIComponent(
+        "http://localhost:3000/api/integrations/oauth/trello/callback"
+      )
+    );
     expect(urls.google_calendar).toContain(
       "https://accounts.google.com/o/oauth2/v2/auth?"
     );

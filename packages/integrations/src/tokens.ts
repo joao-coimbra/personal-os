@@ -3,12 +3,15 @@ import { integrationConnection } from "@personal-os/db/schema/app";
 import { and, eq } from "drizzle-orm";
 
 import { decryptSecret, encryptSecret } from "./crypto";
+import { type OAuthEnv, refreshTrelloAccessToken } from "./oauth";
 
 export type IntegrationProvider =
   | "trello"
   | "google_calendar"
   | "gmail"
   | "notion";
+
+const REFRESH_SKEW_MS = 60_000;
 
 export async function getIntegrationToken(
   db: Database,
@@ -34,6 +37,74 @@ export async function getIntegrationToken(
   return decryptSecret(row.accessTokenEncrypted, encryptionKey);
 }
 
+/**
+ * Returns a usable access token, refreshing Trello OAuth 2.0 tokens when near expiry.
+ */
+export async function getFreshIntegrationToken(
+  db: Database,
+  userId: string,
+  provider: IntegrationProvider,
+  encryptionKey: string,
+  oauthEnv?: Pick<OAuthEnv, "trelloClientId" | "trelloClientSecret">
+): Promise<string | null> {
+  const rows = await db
+    .select()
+    .from(integrationConnection)
+    .where(
+      and(
+        eq(integrationConnection.userId, userId),
+        eq(integrationConnection.provider, provider),
+        eq(integrationConnection.status, "connected")
+      )
+    )
+    .limit(1);
+  const [row] = rows;
+  if (!row?.accessTokenEncrypted) {
+    return null;
+  }
+
+  const accessToken = decryptSecret(row.accessTokenEncrypted, encryptionKey);
+  const needsRefresh =
+    provider === "trello" &&
+    row.tokenExpiresAt !== null &&
+    row.tokenExpiresAt.getTime() - Date.now() < REFRESH_SKEW_MS;
+
+  if (!needsRefresh) {
+    return accessToken;
+  }
+
+  if (
+    !(
+      row.refreshTokenEncrypted &&
+      oauthEnv?.trelloClientId &&
+      oauthEnv.trelloClientSecret
+    )
+  ) {
+    return accessToken;
+  }
+
+  const refreshToken = decryptSecret(row.refreshTokenEncrypted, encryptionKey);
+  const refreshed = await refreshTrelloAccessToken(refreshToken, {
+    appOrigin: "",
+    encryptionKey,
+    serverOrigin: "",
+    trelloClientId: oauthEnv.trelloClientId,
+    trelloClientSecret: oauthEnv.trelloClientSecret,
+  });
+
+  await saveIntegrationToken(db, {
+    accessToken: refreshed.accessToken,
+    encryptionKey,
+    expiresInSeconds: refreshed.expiresIn,
+    provider,
+    refreshToken: refreshed.refreshToken,
+    scopes: refreshed.scopes,
+    userId,
+  });
+
+  return refreshed.accessToken;
+}
+
 export async function saveIntegrationToken(
   db: Database,
   input: {
@@ -44,6 +115,7 @@ export async function saveIntegrationToken(
     scopes?: string;
     externalAccountLabel?: string;
     encryptionKey: string;
+    expiresInSeconds?: number;
   }
 ) {
   const existingRows = await db
@@ -62,6 +134,11 @@ export async function saveIntegrationToken(
     ? encryptSecret(input.refreshToken, input.encryptionKey)
     : (existing?.refreshTokenEncrypted ?? null);
 
+  const tokenExpiresAt =
+    input.expiresInSeconds === undefined
+      ? (existing?.tokenExpiresAt ?? null)
+      : new Date(Date.now() + input.expiresInSeconds * 1000);
+
   const values = {
     accessTokenEncrypted: encryptSecret(input.accessToken, input.encryptionKey),
     errorCode: null,
@@ -70,6 +147,7 @@ export async function saveIntegrationToken(
     refreshTokenEncrypted,
     scopes: input.scopes ?? existing?.scopes ?? null,
     status: "connected" as const,
+    tokenExpiresAt,
     updatedAt: new Date(),
   };
 

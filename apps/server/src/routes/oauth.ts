@@ -1,13 +1,15 @@
 import {
   buildAuthorizeUrl,
+  createPkcePair,
   decodeOAuthState,
   encodeOAuthState,
   exchangeGoogleCode,
   exchangeNotionCode,
+  exchangeTrelloCode,
+  fetchTrelloMemberLabel,
   type OAuthProvider,
   type OAuthStatePayload,
   saveIntegrationToken,
-  validateTrelloApiKey,
 } from "@personal-os/integrations";
 import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -39,7 +41,8 @@ function oauthEnv() {
     notionClientId: ENV.NOTION_CLIENT_ID,
     notionClientSecret: ENV.NOTION_CLIENT_SECRET,
     serverOrigin: serverOrigin(),
-    trelloApiKey: ENV.TRELLO_API_KEY,
+    trelloClientId: ENV.TRELLO_API_KEY,
+    trelloClientSecret: ENV.TRELLO_API_SECRET,
   };
 }
 
@@ -56,16 +59,34 @@ function redirectError(returnTo: string, message: string): string {
 
 async function persistOAuthTokens(input: {
   code: string;
+  codeVerifier?: string;
   provider: OAuthProvider;
   userId: string;
-}): Promise<"trello_fragment" | "saved"> {
-  const { code, provider, userId } = input;
+}): Promise<"saved"> {
+  const { code, codeVerifier, provider, userId } = input;
+  const env = oauthEnv();
+
   if (provider === "trello") {
-    return "trello_fragment";
+    if (!codeVerifier) {
+      throw new Error("Missing PKCE verifier for Trello OAuth.");
+    }
+    const tokens = await exchangeTrelloCode(code, codeVerifier, env);
+    const label = await fetchTrelloMemberLabel(tokens.accessToken);
+    await saveIntegrationToken(db, {
+      accessToken: tokens.accessToken,
+      encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
+      expiresInSeconds: tokens.expiresIn,
+      externalAccountLabel: label,
+      provider,
+      refreshToken: tokens.refreshToken,
+      scopes: tokens.scopes,
+      userId,
+    });
+    return "saved";
   }
 
   if (provider === "google_calendar" || provider === "gmail") {
-    const tokens = await exchangeGoogleCode(code, oauthEnv(), provider);
+    const tokens = await exchangeGoogleCode(code, env, provider);
     await saveIntegrationToken(db, {
       accessToken: tokens.accessToken,
       encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
@@ -78,7 +99,7 @@ async function persistOAuthTokens(input: {
     return "saved";
   }
 
-  const tokens = await exchangeNotionCode(code, oauthEnv());
+  const tokens = await exchangeNotionCode(code, env);
   await saveIntegrationToken(db, {
     accessToken: tokens.accessToken,
     encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
@@ -112,8 +133,11 @@ async function handleOAuthStart(request: FastifyRequest, reply: FastifyReply) {
     return reply.redirect(redirectError(returnTo, message));
   }
 
+  const pkce = provider === "trello" ? createPkcePair() : null;
+
   const state = encodeOAuthState(
     {
+      codeVerifier: pkce?.codeVerifier,
       nonce: crypto.randomUUID(),
       provider,
       returnTo,
@@ -124,13 +148,16 @@ async function handleOAuthStart(request: FastifyRequest, reply: FastifyReply) {
 
   try {
     if (provider === "trello") {
-      const key = oauthEnv().trelloApiKey;
-      if (!key) {
-        throw new Error("TRELLO_API_KEY is not configured.");
+      const env = oauthEnv();
+      if (!(env.trelloClientId && env.trelloClientSecret)) {
+        throw new Error(
+          "Trello OAuth não configurado. Defina TRELLO_API_KEY (client id) e TRELLO_API_SECRET, e registre a URL de retorno no console Atlassian."
+        );
       }
-      await validateTrelloApiKey(key);
     }
-    const url = buildAuthorizeUrl(provider, oauthEnv(), state, returnTo);
+    const url = buildAuthorizeUrl(provider, oauthEnv(), state, {
+      codeChallenge: pkce?.codeChallenge,
+    });
     return reply.redirect(url);
   } catch (error) {
     const message =
@@ -192,16 +219,12 @@ async function handleOAuthCallback(
   }
 
   try {
-    const outcome = await persistOAuthTokens({
+    await persistOAuthTokens({
       code: query.code,
+      codeVerifier: payload.codeVerifier,
       provider,
       userId: session.user.id,
     });
-    if (outcome === "trello_fragment") {
-      return reply.redirect(
-        `${ENV.CORS_ORIGIN}/oauth/trello?state=${encodeURIComponent(query.state)}`
-      );
-    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "oauth_exchange_failed";

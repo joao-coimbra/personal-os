@@ -131,6 +131,7 @@ fastify.post("/api/ai", async (request, reply) => {
       db,
       encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
       trelloApiKey: ENV.TRELLO_API_KEY,
+      trelloApiSecret: ENV.TRELLO_API_SECRET,
       userId: session.user.id,
     },
     body

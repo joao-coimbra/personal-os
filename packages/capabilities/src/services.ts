@@ -3,6 +3,7 @@ import { pendingAiAction } from "@personal-os/db/schema/app";
 import {
   createCard,
   createEvent,
+  getFreshIntegrationToken,
   getIntegrationToken,
   type IntegrationProvider,
   listBoardCards,
@@ -11,7 +12,6 @@ import {
   notionCreatePage,
   notionGetPage,
   notionSearch,
-  updateCard,
 } from "@personal-os/integrations";
 import { classifyEisenhower, quadrantLabel } from "./eisenhower";
 import { planDay } from "./planning";
@@ -19,7 +19,10 @@ import { planDay } from "./planning";
 export interface CapabilityEnv {
   db: Database;
   encryptionKey: string;
+  /** Atlassian OAuth client id — used to refresh Trello tokens. */
   trelloApiKey?: string;
+  /** Atlassian OAuth client secret — used to refresh Trello tokens. */
+  trelloApiSecret?: string;
   userId: string;
 }
 
@@ -39,12 +42,24 @@ async function requireToken(
   env: CapabilityEnv,
   provider: IntegrationProvider
 ): Promise<string> {
-  const token = await getIntegrationToken(
-    env.db,
-    env.userId,
-    provider,
-    env.encryptionKey
-  );
+  const token =
+    provider === "trello"
+      ? await getFreshIntegrationToken(
+          env.db,
+          env.userId,
+          provider,
+          env.encryptionKey,
+          {
+            trelloClientId: env.trelloApiKey,
+            trelloClientSecret: env.trelloApiSecret,
+          }
+        )
+      : await getIntegrationToken(
+          env.db,
+          env.userId,
+          provider,
+          env.encryptionKey
+        );
   if (!token) {
     throw new Error(`Connect ${provider} in Integrations first.`);
   }
@@ -56,18 +71,15 @@ export async function listTasks(
   boardId?: string
 ): Promise<TaskSummary[]> {
   const token = await requireToken(env, "trello");
-  if (!env.trelloApiKey) {
-    throw new Error("Trello API key is not configured on the server.");
-  }
   let targetBoardId = boardId;
   if (!targetBoardId) {
-    const boards = await listMemberBoards(token, env.trelloApiKey);
+    const boards = await listMemberBoards(token);
     targetBoardId = boards[0]?.id;
   }
   if (!targetBoardId) {
     return [];
   }
-  const cards = await listBoardCards(token, env.trelloApiKey, targetBoardId);
+  const cards = await listBoardCards(token, targetBoardId);
   const now = Date.now();
   return cards
     .filter((c) => !c.closed)
@@ -162,17 +174,16 @@ export async function createFocusBlocks(
   blocks: Array<{ end: string; start: string; summary: string }>
 ) {
   const token = await requireToken(env, "google_calendar");
-  const created = [];
-  for (const block of blocks) {
-    created.push(
-      await createEvent(token, {
+  const created: Awaited<ReturnType<typeof createEvent>>[] = await Promise.all(
+    blocks.map((block) =>
+      createEvent(token, {
         description: "PersonalOS focus block",
         end: block.end,
         start: block.start,
         summary: block.summary,
       })
-    );
-  }
+    )
+  );
   return created;
 }
 
@@ -206,10 +217,7 @@ export async function createTask(
   input: { idList: string; name: string; desc?: string; due?: string }
 ) {
   const token = await requireToken(env, "trello");
-  if (!env.trelloApiKey) {
-    throw new Error("Trello API key is not configured on the server.");
-  }
-  return createCard(token, env.trelloApiKey, input);
+  return createCard(token, input);
 }
 
 export async function searchKnowledge(env: CapabilityEnv, query: string) {
@@ -229,5 +237,3 @@ export async function createKnowledgeNote(
   const token = await requireToken(env, "notion");
   return notionCreatePage(token, input);
 }
-
-export { updateCard as updateTrelloCard };
