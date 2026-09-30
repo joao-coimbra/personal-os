@@ -137,15 +137,16 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
 
         {/*
           Compact: size container so AppShell can scale against both cqw and
-          cqh. Prefer the prior compact height (aspect + max-h-60); keep
-          w-full so the wider welcome breakout does not clip on the right.
+          cqh. Fixed tall viewport (was aspect-[16/9] max-h-60 ≈ 15rem) so the
+          fit-scaled shell reads larger; w-full keeps the wide breakout from
+          clipping on the right.
         */}
         <div className={cn("w-full", !compact && "@container")}>
           <div
             className={cn(
               "relative w-full overflow-clip",
               compact
-                ? "@container-size aspect-[16/9] max-h-60"
+                ? "@container-size h-80 sm:h-96 lg:h-[28rem]"
                 : "aspect-[20/9]"
             )}
           >
