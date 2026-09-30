@@ -124,7 +124,7 @@ function OnboardingPage() {
   return (
     <Onboarding
       integrationsContent={
-        <ItemGroup className="gap-2">
+        <ItemGroup className="gap-3">
           {onboardingProviders.map((provider) => {
             const isConnected = connected.has(provider.id);
 

@@ -45,30 +45,30 @@ export function ConnectProviderCard({
   return (
     <Item
       className={cn(
-        "items-center",
+        "items-center gap-3",
         isConnected && "border-emerald-500/35 bg-emerald-500/[0.03]"
       )}
       size="sm"
       variant="outline"
     >
       <ItemMedia
-        className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-background text-foreground shadow-none [&_svg]:size-5"
+        className="flex size-10 shrink-0 items-center justify-center self-center rounded-xl border border-border/80 bg-background text-foreground shadow-none [&_svg]:size-5"
         variant="default"
       >
         {logo}
       </ItemMedia>
 
-      <ItemContent className="min-w-0 gap-0.5">
+      <ItemContent className="min-w-0 flex-1 gap-0.5">
         <ItemTitle className="gap-2">
           <span>{name}</span>
           {isConnected ? connectedLabel : null}
         </ItemTitle>
-        <ItemDescription className="line-clamp-2 text-xs sm:text-sm">
+        <ItemDescription className="line-clamp-2 text-xs leading-relaxed sm:text-sm">
           {description}
         </ItemDescription>
       </ItemContent>
 
-      <ItemActions className="ms-auto shrink-0">
+      <ItemActions className="ms-auto w-full shrink-0 sm:w-auto">
         <ProviderActions
           isConnected={isConnected}
           isPending={isPending}
@@ -100,7 +100,13 @@ function ProviderActions({
     }
 
     return (
-      <Button onClick={onDisconnect} size="sm" type="button" variant="ghost">
+      <Button
+        className="w-full sm:w-auto"
+        onClick={onDisconnect}
+        size="sm"
+        type="button"
+        variant="ghost"
+      >
         Desconectar
       </Button>
     );
@@ -108,6 +114,7 @@ function ProviderActions({
 
   return (
     <Button
+      className="w-full sm:w-auto"
       disabled={isPending}
       onClick={() => startOAuth(provider, returnTo)}
       size="sm"
