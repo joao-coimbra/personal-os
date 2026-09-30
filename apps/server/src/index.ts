@@ -11,6 +11,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import Fastify from "fastify";
 
 import { type AiRequestBody, createOperatorStream } from "./ai/handler";
+import { sendAuthResponse } from "./auth-response";
 import { createContext } from "./context";
 import { desktopOrigins, ENV } from "./env.server";
 import { registerMcpRoutes } from "./mcp/register";
@@ -108,11 +109,10 @@ fastify.route({
         headers,
         method: request.method,
       });
-      // Fastify natively forwards Fetch Response status/headers/body (including
-      // multi Set-Cookie). Do not reply.send(null): that serializes JSON `null`
-      // and leaves OAuth callbacks stranded on the API origin.
       const response = await auth.handler(req);
-      return reply.send(response);
+      // Forward status / Location / Set-Cookie without JSON-serializing empty
+      // redirect bodies as `null` (breaks Google OAuth callbacks in the browser).
+      await sendAuthResponse(reply, response);
     } catch (error) {
       fastify.log.error({ err: error }, "Authentication Error:");
       return reply.status(500).send({
