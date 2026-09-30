@@ -52,11 +52,6 @@ upsert_trello_api_key() {
     return 0
   fi
 
-  if [[ -n "${current}" ]] && is_trello_powerup_api_key "${current}"; then
-    # Keep a valid existing key unless we have a different valid hex to write and current is empty (handled above).
-    return 0
-  fi
-
   if [[ -z "${value}" ]]; then
     if [[ -n "${current}" ]] && ! is_trello_powerup_api_key "${current}"; then
       echo "warn: apps/server/.env TRELLO_API_KEY is set but is not a classic 32-hex Power-Up key; Connect Trello will fail until replaced." >&2
@@ -64,7 +59,12 @@ upsert_trello_api_key() {
     return 0
   fi
 
-  # Valid hex secret provided: clear invalid/empty existing key and write the new one.
+  # Prefer Cursor/process hex when present (including rotated keys that differ from .env).
+  if [[ -n "${current}" ]] && is_trello_powerup_api_key "${current}" && [[ "${current}" == "${value}" ]]; then
+    return 0
+  fi
+
+  # Valid hex secret provided: replace empty, invalid, or stale .env key.
   if grep -q "^TRELLO_API_KEY=" "$file" 2>/dev/null; then
     # shellcheck disable=SC2094
     grep -v "^TRELLO_API_KEY=" "$file" >"${file}.tmp" || true
@@ -73,6 +73,8 @@ upsert_trello_api_key() {
   printf 'TRELLO_API_KEY=%s\n' "$value" >>"$file"
   if [[ -n "${current}" ]] && ! is_trello_powerup_api_key "${current}"; then
     echo "warn: replaced invalid (non-hex) TRELLO_API_KEY in ${file} with classic Power-Up hex key from secrets." >&2
+  elif [[ -n "${current}" ]] && [[ "${current}" != "${value}" ]]; then
+    echo "warn: replaced apps/server/.env TRELLO_API_KEY with rotated Power-Up hex key from secrets." >&2
   fi
 }
 
@@ -122,7 +124,16 @@ upsert_env "${SERVER_ENV}" "GITHUB_CLIENT_SECRET" "${GITHUB_CLIENT_SECRET:-}"
 upsert_env "${SERVER_ENV}" "NOTION_CLIENT_ID" "${NOTION_CLIENT_ID:-}"
 upsert_env "${SERVER_ENV}" "NOTION_CLIENT_SECRET" "${NOTION_CLIENT_SECRET:-}"
 upsert_trello_api_key "${SERVER_ENV}" "${TRELLO_API_KEY:-}"
-upsert_env "${SERVER_ENV}" "TRELLO_API_SECRET" "${TRELLO_API_SECRET:-}"
+# Prefer Cursor/process secrets when present so rotated Power-Up secrets replace stale .env values.
+if [[ -n "${TRELLO_API_SECRET:-}" ]]; then
+  if grep -q "^TRELLO_API_SECRET=" "${SERVER_ENV}" 2>/dev/null; then
+    grep -v "^TRELLO_API_SECRET=" "${SERVER_ENV}" >"${SERVER_ENV}.tmp" || true
+    mv "${SERVER_ENV}.tmp" "${SERVER_ENV}"
+  fi
+  printf 'TRELLO_API_SECRET=%s\n' "${TRELLO_API_SECRET}" >>"${SERVER_ENV}"
+else
+  upsert_env "${SERVER_ENV}" "TRELLO_API_SECRET" ""
+fi
 upsert_env "${SERVER_ENV}" "RESEND_API_KEY" "${RESEND_API_KEY:-}"
 upsert_env "${SERVER_ENV}" "RESEND_FROM_EMAIL" "${RESEND_FROM_EMAIL:-}"
 
