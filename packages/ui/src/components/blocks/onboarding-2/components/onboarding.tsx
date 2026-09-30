@@ -465,8 +465,9 @@ export function Onboarding({
       (timezone.trim().length > 0 &&
         workStart.trim().length > 0 &&
         workEnd.trim().length > 0));
-  const showSkip =
-    currentStepMeta.id === "integrations" || currentStepMeta.id === "goals";
+  // Skip only on goals: Continuar requires a selection there.
+  // Integrations has no selection requirement, so Continuar alone advances.
+  const showSkip = currentStepMeta.id === "goals";
 
   function goToStep(step: number) {
     const nextStep = Math.min(Math.max(step, 1), TOTAL_STEPS);
@@ -643,7 +644,11 @@ export function Onboarding({
                             data-icon="inline-start"
                           />
                         ) : null}
-                        {isFinalStep ? "Concluir setup" : "Continuar"}
+                        {isFinalStep
+                          ? "Concluir setup"
+                          : currentStepMeta.id === "welcome"
+                            ? "Começar"
+                            : "Continuar"}
                       </Button>
 
                       {showSkip ? (
