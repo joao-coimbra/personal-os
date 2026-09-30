@@ -72,15 +72,6 @@ export const STEPS: Step[] = [
     title: "Operador",
     value: "add",
   },
-  {
-    description: "Trello, Calendar e Notion com autorização oficial.",
-    navId: "settings",
-    number: "4",
-    panelCaption: "Ligue as ferramentas e vá ao vivo.",
-    panelTitle: "Integrações",
-    title: "Conectar",
-    value: "ship",
-  },
 ];
 
 // #region Console chrome

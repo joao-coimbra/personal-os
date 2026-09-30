@@ -14,7 +14,6 @@ import {
   ComponentsWorkspace,
   FRAME_MOTION,
   InstallWorkspace,
-  IntegrationsWorkspace,
   OverviewWorkspace,
   type WorkspaceProps,
 } from "./workspaces";
@@ -24,11 +23,10 @@ const WORKSPACES: Record<string, (props: WorkspaceProps) => React.ReactNode> = {
   add: InstallWorkspace,
   pick: ComponentsWorkspace,
   "set-up": OverviewWorkspace,
-  ship: IntegrationsWorkspace,
 };
 
 /**
- * How long a step holds before the strip moves on; the circuit runs ~24s.
+ * How long a step holds before the strip moves on; three steps ≈ 18s.
  * customize: raise it for denser views, or set it to 0 to stop the walk.
  */
 const STEP_DWELL_MS = 6000;
@@ -86,17 +84,15 @@ export function Showcase() {
         onValueChange={setValue}
         value={value}
       >
-        {/* The design draws the four steps as one row, so the row holds from a
-            tablet up; only a phone stacks them. */}
+        {/* Three steps in one row from tablet up; phones stack. */}
         <TabsList
-          className="grid! items-stretch! h-auto! w-full @2xl:grid-cols-2 @3xl:grid-cols-4 grid-cols-1 gap-0 rounded-none border-b bg-transparent p-0!"
+          className="grid! items-stretch! h-auto! w-full @2xl:grid-cols-3 grid-cols-1 gap-0 rounded-none border-b bg-transparent p-0!"
           variant="line"
         >
           {STEPS.map((item) => (
             <TabsTrigger
-              /* A cell rules off its right neighbour only; the row ends and the
-                 last row stay bare, so the card's own edge is a single hairline. */
-              className="h-auto! w-full flex-none cursor-pointer items-center justify-start rounded-none border-border! border-t @3xl:border-t-0! border-r-0 border-b-0 border-l-0 p-3 text-start transition-colors after:hidden first:border-t-0 hover:bg-muted/50 data-active:bg-muted! @2xl:[&:nth-child(-n+2)]:border-t-0 @3xl:[&:nth-child(2)]:border-r! @2xl:[&:nth-child(odd)]:border-r!"
+              /* A cell rules off its right neighbour only; the last stays bare. */
+              className="h-auto! w-full flex-none cursor-pointer items-center justify-start rounded-none border-border! border-t @2xl:border-t-0! border-r-0 border-b-0 border-l-0 p-3 text-start transition-colors after:hidden first:border-t-0 hover:bg-muted/50 data-active:bg-muted! @2xl:[&:not(:last-child)]:border-r!"
               key={item.value}
               value={item.value}
             >
