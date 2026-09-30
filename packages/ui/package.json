@@ -16,6 +16,9 @@
     "./components/blocks/how-it-works-4": "./src/components/blocks/how-it-works-4/page.tsx",
     "./components/blocks/how-it-works-4/*": "./src/components/blocks/how-it-works-4/*.tsx",
     "./components/blocks/how-it-works-4/components/*": "./src/components/blocks/how-it-works-4/components/*.tsx",
+    "./components/blocks/app-shell-18": "./src/components/blocks/app-shell-18/page.tsx",
+    "./components/blocks/app-shell-18/*": "./src/components/blocks/app-shell-18/*.tsx",
+    "./components/blocks/app-shell-18/components/*": "./src/components/blocks/app-shell-18/components/*.tsx",
     "./hooks/*": "./src/hooks/*.ts",
     "./postcss.config": "./postcss.config.mjs"
   },
