@@ -9,7 +9,8 @@
     "compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
     "dev": "tsx watch src/index.ts",
     "env:generate": "varlock codegen",
-    "start": "node dist/index.mjs"
+    "start": "node dist/index.mjs",
+    "test": "bun test src"
   },
   "dependencies": {
     "@ai-sdk/devtools": "^1.0.15",
