@@ -3,7 +3,6 @@ import { pendingAiAction } from "@personal-os/db/schema/app";
 import {
   createCard,
   createEvent,
-  getFreshIntegrationToken,
   getIntegrationToken,
   type IntegrationProvider,
   listBoardCards,
@@ -19,10 +18,8 @@ import { planDay } from "./planning";
 export interface CapabilityEnv {
   db: Database;
   encryptionKey: string;
-  /** Atlassian OAuth client id — used to refresh Trello tokens. */
+  /** Classic Power-Up API Key (32 hex) used with the user token. */
   trelloApiKey?: string;
-  /** Atlassian OAuth client secret — used to refresh Trello tokens. */
-  trelloApiSecret?: string;
   userId: string;
 }
 
@@ -42,28 +39,25 @@ async function requireToken(
   env: CapabilityEnv,
   provider: IntegrationProvider
 ): Promise<string> {
-  const token =
-    provider === "trello"
-      ? await getFreshIntegrationToken(
-          env.db,
-          env.userId,
-          provider,
-          env.encryptionKey,
-          {
-            trelloClientId: env.trelloApiKey,
-            trelloClientSecret: env.trelloApiSecret,
-          }
-        )
-      : await getIntegrationToken(
-          env.db,
-          env.userId,
-          provider,
-          env.encryptionKey
-        );
+  const token = await getIntegrationToken(
+    env.db,
+    env.userId,
+    provider,
+    env.encryptionKey
+  );
   if (!token) {
     throw new Error(`Connect ${provider} in Integrations first.`);
   }
   return token;
+}
+
+function requireTrelloApiKey(env: CapabilityEnv): string {
+  if (!env.trelloApiKey) {
+    throw new Error(
+      "Trello API key is not configured on the server (TRELLO_API_KEY)."
+    );
+  }
+  return env.trelloApiKey;
 }
 
 export async function listTasks(
@@ -71,15 +65,16 @@ export async function listTasks(
   boardId?: string
 ): Promise<TaskSummary[]> {
   const token = await requireToken(env, "trello");
+  const apiKey = requireTrelloApiKey(env);
   let targetBoardId = boardId;
   if (!targetBoardId) {
-    const boards = await listMemberBoards(token);
+    const boards = await listMemberBoards(token, apiKey);
     targetBoardId = boards[0]?.id;
   }
   if (!targetBoardId) {
     return [];
   }
-  const cards = await listBoardCards(token, targetBoardId);
+  const cards = await listBoardCards(token, apiKey, targetBoardId);
   const now = Date.now();
   return cards
     .filter((c) => !c.closed)
@@ -217,7 +212,7 @@ export async function createTask(
   input: { idList: string; name: string; desc?: string; due?: string }
 ) {
   const token = await requireToken(env, "trello");
-  return createCard(token, input);
+  return createCard(token, requireTrelloApiKey(env), input);
 }
 
 export async function searchKnowledge(env: CapabilityEnv, query: string) {

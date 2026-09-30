@@ -1,15 +1,13 @@
 import {
   buildAuthorizeUrl,
-  createPkcePair,
   decodeOAuthState,
   encodeOAuthState,
   exchangeGoogleCode,
   exchangeNotionCode,
-  exchangeTrelloCode,
-  fetchTrelloMemberLabel,
   type OAuthProvider,
   type OAuthStatePayload,
   saveIntegrationToken,
+  validateTrelloApiKey,
 } from "@personal-os/integrations";
 import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -41,8 +39,7 @@ function oauthEnv() {
     notionClientId: ENV.NOTION_CLIENT_ID,
     notionClientSecret: ENV.NOTION_CLIENT_SECRET,
     serverOrigin: serverOrigin(),
-    trelloClientId: ENV.TRELLO_API_KEY,
-    trelloClientSecret: ENV.TRELLO_API_SECRET,
+    trelloApiKey: ENV.TRELLO_API_KEY,
   };
 }
 
@@ -93,30 +90,18 @@ function oauthCompleteRedirect(
 
 async function persistOAuthTokens(input: {
   code: string;
-  codeVerifier?: string;
   provider: OAuthProvider;
   userId: string;
 }): Promise<"saved"> {
-  const { code, codeVerifier, provider, userId } = input;
+  const { code, provider, userId } = input;
   const env = oauthEnv();
 
   if (provider === "trello") {
-    if (!codeVerifier) {
-      throw new Error("Missing PKCE verifier for Trello OAuth.");
-    }
-    const tokens = await exchangeTrelloCode(code, codeVerifier, env);
-    const label = await fetchTrelloMemberLabel(tokens.accessToken);
-    await saveIntegrationToken(db, {
-      accessToken: tokens.accessToken,
-      encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
-      expiresInSeconds: tokens.expiresIn,
-      externalAccountLabel: label,
-      provider,
-      refreshToken: tokens.refreshToken,
-      scopes: tokens.scopes,
-      userId,
-    });
-    return "saved";
+    // Classic Trello Auth returns the token in the fragment to /oauth/trello.
+    // Server callback is unused for Trello.
+    throw new Error(
+      "Trello uses classic Auth (fragment). Open Conectar again from Integrações."
+    );
   }
 
   if (provider === "google_calendar" || provider === "gmail") {
@@ -171,11 +156,8 @@ async function handleOAuthStart(request: FastifyRequest, reply: FastifyReply) {
     );
   }
 
-  const pkce = provider === "trello" ? createPkcePair() : null;
-
   const state = encodeOAuthState(
     {
-      codeVerifier: pkce?.codeVerifier,
       displayMode,
       nonce: crypto.randomUUID(),
       provider,
@@ -186,25 +168,18 @@ async function handleOAuthStart(request: FastifyRequest, reply: FastifyReply) {
   );
 
   try {
-    const env = oauthEnv();
-    if (
-      provider === "trello" &&
-      !(env.trelloClientId && env.trelloClientSecret)
-    ) {
-      throw new Error(
-        "Trello OAuth não configurado. Defina TRELLO_API_KEY (client id) e TRELLO_API_SECRET, e registre a URL de retorno no console Atlassian."
-      );
+    if (provider === "trello") {
+      const key = oauthEnv().trelloApiKey;
+      if (!key) {
+        throw new Error(
+          "Trello não configurado. Defina TRELLO_API_KEY com a API Key clássica do Power-Up (aba Trello Auth em https://trello.com/power-ups/admin), e adicione a origem do web em Allowed origins."
+        );
+      }
+      await validateTrelloApiKey(key);
     }
-    if (
-      provider === "notion" &&
-      !(env.notionClientId && env.notionClientSecret)
-    ) {
-      throw new Error(
-        `Notion OAuth não configurado. Defina NOTION_CLIENT_ID e NOTION_CLIENT_SECRET, e registre exatamente esta Redirect URI no console Notion: ${env.serverOrigin}/api/integrations/oauth/notion/callback`
-      );
-    }
-    const url = buildAuthorizeUrl(provider, env, state, {
-      codeChallenge: pkce?.codeChallenge,
+    const url = buildAuthorizeUrl(provider, oauthEnv(), state, {
+      displayMode,
+      returnTo,
     });
     return reply.redirect(url);
   } catch (error) {
@@ -233,6 +208,14 @@ async function handleOAuthCallback(
   } catch {
     return reply.redirect(
       `${ENV.CORS_ORIGIN}/integrations?error=unsupported_provider`
+    );
+  }
+
+  if (provider === "trello") {
+    return reply.redirect(
+      `${ENV.CORS_ORIGIN}/integrations?error=${encodeURIComponent(
+        "Trello uses classic Auth. Use Conectar — the token returns to /oauth/trello."
+      )}`
     );
   }
 
@@ -275,7 +258,6 @@ async function handleOAuthCallback(
   try {
     await persistOAuthTokens({
       code: query.code,
-      codeVerifier: payload.codeVerifier,
       provider,
       userId: session.user.id,
     });

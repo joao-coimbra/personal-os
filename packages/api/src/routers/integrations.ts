@@ -1,7 +1,9 @@
 import { integrationConnection } from "@personal-os/db/schema/app";
 import {
   clearIntegrationConnection,
+  fetchTrelloMemberLabel,
   saveIntegrationToken,
+  validateTrelloApiKey,
 } from "@personal-os/integrations";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -24,10 +26,22 @@ export const integrationsRouter = {
       if (!encryptionKey || encryptionKey.length < 32) {
         throw new Error("INTEGRATION_ENCRYPTION_KEY is not configured.");
       }
+
+      let label = input.externalAccountLabel;
+      if (input.provider === "trello") {
+        const apiKey = process.env.TRELLO_API_KEY;
+        if (!apiKey) {
+          throw new Error("TRELLO_API_KEY is not configured.");
+        }
+        await validateTrelloApiKey(apiKey);
+        // Fail-fast: do not mark connected unless a live Trello call succeeds.
+        label = await fetchTrelloMemberLabel(input.token, apiKey);
+      }
+
       await saveIntegrationToken(context.db, {
         accessToken: input.token,
         encryptionKey,
-        externalAccountLabel: input.externalAccountLabel,
+        externalAccountLabel: label,
         provider: input.provider,
         userId: context.session.user.id,
       });

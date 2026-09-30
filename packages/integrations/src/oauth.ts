@@ -1,9 +1,6 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+import { trelloFetch } from "./trello";
 
 export type OAuthProvider = "trello" | "google_calendar" | "gmail" | "notion";
 
@@ -15,15 +12,14 @@ export interface OAuthEnv {
   notionClientId?: string;
   notionClientSecret?: string;
   serverOrigin: string;
-  /** Atlassian OAuth 2.0 client id (Developer Console). */
-  trelloClientId?: string;
-  /** Atlassian OAuth 2.0 client secret (confidential clients). */
-  trelloClientSecret?: string;
+  /**
+   * Classic Power-Up API Key from Trello Auth tab (32 hex chars).
+   * Not the Atlassian OAuth 2.0 client id.
+   */
+  trelloApiKey?: string;
 }
 
 export interface OAuthStatePayload {
-  /** PKCE verifier for Atlassian/Trello OAuth 2.0. */
-  codeVerifier?: string;
   /** `popup` → `/oauth/popup-done`; `page` (default) → `returnTo`. */
   displayMode?: "popup" | "page";
   nonce: string;
@@ -46,22 +42,6 @@ const GOOGLE_CALENDAR_SCOPES = [
 const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/userinfo.email",
-].join(" ");
-
-/**
- * Must match scopes enabled on the Atlassian/Trello OAuth 2.0 client.
- * `offline_access` is required to receive a refresh token (not shown in the console table).
- */
-export const TRELLO_OAUTH_SCOPES = [
-  "read:member:trello",
-  "write:member:trello",
-  "read:board:trello",
-  "write:board:trello",
-  "write:board:membership:trello",
-  "read:organization:trello",
-  "write:organization:trello",
-  "write:organization:membership:trello",
-  "offline_access",
 ].join(" ");
 
 const GOOGLE_PROVIDERS = new Set<OAuthProvider>(["google_calendar", "gmail"]);
@@ -113,23 +93,11 @@ function googleScopesFor(provider: OAuthProvider): string {
   return GOOGLE_CALENDAR_SCOPES;
 }
 
-/** Creates a PKCE verifier/challenge pair (S256) for Atlassian OAuth 2.0. */
-export function createPkcePair(): {
-  codeChallenge: string;
-  codeVerifier: string;
-} {
-  const codeVerifier = randomBytes(32).toString("base64url");
-  const codeChallenge = createHash("sha256")
-    .update(codeVerifier)
-    .digest("base64url");
-  return { codeChallenge, codeVerifier };
-}
-
 export function buildAuthorizeUrl(
   provider: OAuthProvider,
   env: OAuthEnv,
   state: string,
-  options?: { codeChallenge?: string }
+  options?: { displayMode?: "popup" | "page"; returnTo?: string }
 ): string {
   if (GOOGLE_PROVIDERS.has(provider)) {
     if (!env.googleClientId) {
@@ -152,35 +120,38 @@ export function buildAuthorizeUrl(
     if (!env.notionClientId) {
       throw new Error("NOTION_CLIENT_ID is not configured.");
     }
-    const notionRedirectUri = callbackUrl(env.serverOrigin, provider);
     const params = new URLSearchParams({
       client_id: env.notionClientId,
       owner: "user",
-      redirect_uri: notionRedirectUri,
+      redirect_uri: callbackUrl(env.serverOrigin, provider),
       response_type: "code",
       state,
     });
     return `https://api.notion.com/v1/oauth/authorize?${params.toString()}`;
   }
 
-  // Atlassian OAuth 2.0 (confidential + PKCE) for Trello.
-  if (!env.trelloClientId) {
-    throw new Error("TRELLO_API_KEY (OAuth client id) is not configured.");
+  // Classic Trello Auth: token returned in the URL fragment to the web app.
+  if (!env.trelloApiKey) {
+    throw new Error(
+      "TRELLO_API_KEY is not configured (classic Power-Up API Key)."
+    );
   }
-  if (!options?.codeChallenge) {
-    throw new Error("Trello OAuth requires a PKCE code challenge.");
-  }
+  const returnTo = options?.returnTo ?? "/integrations";
+  const displayMode = options?.displayMode ?? "page";
+  const returnUrl = new URL("/oauth/trello", env.appOrigin);
+  returnUrl.searchParams.set("state", state);
+  returnUrl.searchParams.set("returnTo", returnTo);
+  returnUrl.searchParams.set("displayMode", displayMode);
   const params = new URLSearchParams({
-    client_id: env.trelloClientId,
-    code_challenge: options.codeChallenge,
-    code_challenge_method: "S256",
-    prompt: "consent",
-    redirect_uri: callbackUrl(env.serverOrigin, "trello"),
-    response_type: "code",
-    scope: TRELLO_OAUTH_SCOPES,
-    state,
+    callback_method: "fragment",
+    expiration: "never",
+    key: env.trelloApiKey,
+    name: "PersonalOS",
+    response_type: "token",
+    return_url: returnUrl.toString(),
+    scope: "read,write,account",
   });
-  return `https://auth.atlassian.com/authorize?${params.toString()}`;
+  return `https://trello.com/1/authorize?${params.toString()}`;
 }
 
 export async function exchangeGoogleCode(
@@ -264,11 +235,7 @@ export async function exchangeNotionCode(
     method: "POST",
   });
   if (!response.ok) {
-    const detail = (await response.text()).slice(0, 200);
-    const expectedRedirect = callbackUrl(env.serverOrigin, "notion");
-    throw new Error(
-      `Notion token exchange failed: ${response.status}${detail ? ` ${detail}` : ""}. Confirme a Redirect URI no console Notion: ${expectedRedirect}`
-    );
+    throw new Error(`Notion token exchange failed: ${response.status}`);
   }
   const data = (await response.json()) as {
     access_token: string;
@@ -280,116 +247,32 @@ export async function exchangeNotionCode(
   };
 }
 
-export async function exchangeTrelloCode(
-  code: string,
-  codeVerifier: string,
-  env: OAuthEnv
-): Promise<{
-  accessToken: string;
-  expiresIn?: number;
-  refreshToken?: string;
-  scopes?: string;
-}> {
-  if (!(env.trelloClientId && env.trelloClientSecret)) {
-    throw new Error(
-      "Trello OAuth credentials are not configured (TRELLO_API_KEY + TRELLO_API_SECRET)."
-    );
-  }
-  const response = await fetch("https://auth.atlassian.com/oauth/token", {
-    body: JSON.stringify({
-      client_id: env.trelloClientId,
-      client_secret: env.trelloClientSecret,
-      code,
-      code_verifier: codeVerifier,
-      grant_type: "authorization_code",
-      redirect_uri: callbackUrl(env.serverOrigin, "trello"),
-    }),
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-    method: "POST",
-  });
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(
-      `Trello token exchange failed: ${response.status}${detail ? ` ${detail}` : ""}`
-    );
-  }
-  const data = (await response.json()) as {
-    access_token: string;
-    expires_in?: number;
-    refresh_token?: string;
-    scope?: string;
-  };
-  return {
-    accessToken: data.access_token,
-    expiresIn: data.expires_in,
-    refreshToken: data.refresh_token,
-    scopes: data.scope,
-  };
-}
-
-export async function refreshTrelloAccessToken(
-  refreshToken: string,
-  env: OAuthEnv
-): Promise<{
-  accessToken: string;
-  expiresIn?: number;
-  refreshToken?: string;
-  scopes?: string;
-}> {
-  if (!(env.trelloClientId && env.trelloClientSecret)) {
-    throw new Error(
-      "Trello OAuth credentials are not configured (TRELLO_API_KEY + TRELLO_API_SECRET)."
-    );
-  }
-  const response = await fetch("https://auth.atlassian.com/oauth/token", {
-    body: JSON.stringify({
-      client_id: env.trelloClientId,
-      client_secret: env.trelloClientSecret,
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-    method: "POST",
-  });
-  if (!response.ok) {
-    throw new Error(`Trello token refresh failed: ${response.status}`);
-  }
-  const data = (await response.json()) as {
-    access_token: string;
-    expires_in?: number;
-    refresh_token?: string;
-    scope?: string;
-  };
-  return {
-    accessToken: data.access_token,
-    expiresIn: data.expires_in,
-    refreshToken: data.refresh_token,
-    scopes: data.scope,
-  };
-}
-
+/**
+ * Live probe before marking Trello connected. Throws if key/token are rejected.
+ */
 export async function fetchTrelloMemberLabel(
-  accessToken: string
+  token: string,
+  apiKey: string
 ): Promise<string> {
-  const response = await fetch(
-    "https://api.trello.com/1/members/me?fields=fullName,username",
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!response.ok) {
-    const detail = (await response.text()).slice(0, 200);
+  try {
+    const data = await trelloFetch<{
+      fullName?: string;
+      username?: string;
+    }>("/members/me?fields=fullName,username", token, apiKey, {
+      method: "GET",
+    });
+    const label = data.fullName ?? data.username;
+    if (!label) {
+      throw new Error(
+        "Trello API responded but returned no member label. Reconnect Trello."
+      );
+    }
+    return label;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Trello access token was issued but the Trello API rejected it (${response.status}${detail ? `: ${detail}` : ""}). Scopes in the Trello console alone are not enough — disconnect and Conectar again so a new token is issued (old tokens keep their original scopes). If it still fails, the OAuth 2.0 client may not be usable for REST yet; check that this app is under trello.com/power-ups/admin (or apps/admin) and try again after restarting the API.`
+      `Trello token was issued but the Trello API rejected it (${detail}). Confirm TRELLO_API_KEY is the classic Power-Up API Key (Trello Auth tab), Allowed origins include your web app origin (e.g. http://localhost:3001), and try Conectar again.`,
+      { cause: error }
     );
   }
-  const data = (await response.json()) as {
-    fullName?: string;
-    username?: string;
-  };
-  const label = data.fullName ?? data.username;
-  if (!label) {
-    throw new Error(
-      "Trello API responded but returned no member label. Reconnect Trello."
-    );
-  }
-  return label;
 }

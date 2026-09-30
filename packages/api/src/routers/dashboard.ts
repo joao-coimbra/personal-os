@@ -18,7 +18,6 @@ function capabilityEnv(context: {
     db: context.db,
     encryptionKey,
     trelloApiKey: process.env.TRELLO_API_KEY,
-    trelloApiSecret: process.env.TRELLO_API_SECRET,
     userId: context.session.user.id,
   };
 }

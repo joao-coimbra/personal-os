@@ -9,6 +9,8 @@ const API = process.env.BETTER_AUTH_URL
 
 const PROVIDERS = ["trello", "google_calendar", "gmail", "notion"] as const;
 
+const CLASSIC_TRELLO_API_KEY = /^[0-9a-f]{32}$/i;
+
 async function checkUnauthStart(provider: string): Promise<string> {
   const response = await fetch(
     `${API}/api/integrations/oauth/${provider}/start?returnTo=%2Fintegrations`,
@@ -53,7 +55,6 @@ async function main() {
     "NOTION_CLIENT_ID",
     "NOTION_CLIENT_SECRET",
     "TRELLO_API_KEY",
-    "TRELLO_API_SECRET",
   ];
   for (const key of required) {
     const value = process.env[key];
@@ -63,14 +64,28 @@ async function main() {
     results.push(`ok  env ${key} present`);
   }
 
-  const callback = `${API}/api/integrations/oauth/trello/callback`;
+  const key = process.env.TRELLO_API_KEY ?? "";
+  if (!CLASSIC_TRELLO_API_KEY.test(key)) {
+    throw new Error(
+      "TRELLO_API_KEY must be the classic Power-Up API Key (32 hex chars from Trello Auth tab), not an OAuth client id"
+    );
+  }
+  results.push("ok  TRELLO_API_KEY looks like a classic Power-Up API key");
+
+  const webOrigin =
+    process.env.CORS_ORIGIN ??
+    process.env.VITE_APP_URL ??
+    "http://localhost:3001";
   results.push(
-    `ok  register this Trello OAuth callback in Atlassian console: ${callback}`
+    `ok  add this web origin to Power-Up Allowed origins: ${webOrigin}`
+  );
+  results.push(
+    `ok  Trello classic Auth returns token to ${webOrigin}/oauth/trello`
   );
 
   console.log(results.join("\n"));
   console.log(
-    "\nNote: Trello uses Atlassian OAuth 2.0 (auth.atlassian.com). Gmail OAuth is wired; operator tools for Gmail are not shipped yet."
+    "\nNote: Trello uses classic /1/authorize (key+token). Gmail OAuth is wired; operator tools for Gmail are not shipped yet."
   );
 }
 
