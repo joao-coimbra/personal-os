@@ -8,24 +8,43 @@ import { Input } from "@personal-os/ui/components/input";
 import { Separator } from "@personal-os/ui/components/separator";
 import { Link } from "@tanstack/react-router";
 import { ArrowRightIcon, Loader2 } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-
 import { authClient } from "@/lib/auth-client";
+import {
+  getSocialAuthRedirects,
+  messageForAuthError,
+} from "@/lib/auth-redirects";
 
 import { AUTH16_PROVIDERS } from "./data";
+import { useLoginSearch } from "./use-login-search";
 
 export function SignInForm() {
   const [email, setEmail] = useState("");
   const [isSendingLink, setIsSendingLink] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
   const [pendingProvider, setPendingProvider] = useState<string | null>(null);
+  const { error: authError } = useLoginSearch();
+  const reportedAuthError = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!authError || reportedAuthError.current === authError) {
+      return;
+    }
+    reportedAuthError.current = authError;
+    const message = messageForAuthError(authError);
+    if (message) {
+      toast.error(message);
+    }
+  }, [authError]);
 
   const handleSocial = (provider: "google" | "github") => {
     setPendingProvider(provider);
+    const { callbackURL, errorCallbackURL } = getSocialAuthRedirects();
     void authClient.signIn.social(
       {
-        callbackURL: "/onboarding",
+        callbackURL,
+        errorCallbackURL,
         provider,
       },
       {
@@ -48,13 +67,14 @@ export function SignInForm() {
       return;
     }
 
+    const { callbackURL, errorCallbackURL } = getSocialAuthRedirects();
     setIsSendingLink(true);
     await authClient.signIn.magicLink(
       {
-        callbackURL: "/onboarding",
+        callbackURL,
         email: trimmed,
-        errorCallbackURL: "/login",
-        newUserCallbackURL: "/onboarding",
+        errorCallbackURL,
+        newUserCallbackURL: callbackURL,
       },
       {
         onError: (error) => {

@@ -18,12 +18,24 @@ import { registerFileRoutes } from "./routes/files";
 import { registerOAuthRoutes } from "./routes/oauth";
 import { auth, db } from "./services";
 
+const localDevOrigins =
+  ENV.NODE_ENV === "development"
+    ? [
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+      ]
+    : [];
+
 const baseCorsConfig = {
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true,
   maxAge: 86_400,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  origin: [ENV.CORS_ORIGIN, ...desktopOrigins],
+  origin: [
+    ...new Set([ENV.CORS_ORIGIN, ...localDevOrigins, ...desktopOrigins]),
+  ],
 };
 
 const rpcHandler = new RPCHandler(appRouter, {
@@ -90,12 +102,7 @@ fastify.route({
   async handler(request, reply) {
     try {
       const url = new URL(request.url, `http://${request.headers.host}`);
-      const headers = new Headers();
-      Object.entries(request.headers).forEach(([key, value]) => {
-        if (value) {
-          headers.append(key, value.toString());
-        }
-      });
+      const headers = fromNodeHeaders(request.headers);
       const req = new Request(url.toString(), {
         body: request.body ? JSON.stringify(request.body) : undefined,
         headers,
@@ -103,7 +110,20 @@ fastify.route({
       });
       const response = await auth.handler(req);
       reply.status(response.status);
-      response.headers.forEach((value, key) => reply.header(key, value));
+      // Preserve every Set-Cookie (Headers.get() collapses them).
+      const setCookies =
+        typeof response.headers.getSetCookie === "function"
+          ? response.headers.getSetCookie()
+          : [];
+      response.headers.forEach((value, key) => {
+        if (key.toLowerCase() === "set-cookie") {
+          return;
+        }
+        reply.header(key, value);
+      });
+      for (const cookie of setCookies) {
+        reply.header("set-cookie", cookie);
+      }
       reply.send(response.body ? await response.text() : null);
     } catch (error) {
       fastify.log.error({ err: error }, "Authentication Error:");

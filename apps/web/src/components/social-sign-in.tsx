@@ -1,19 +1,19 @@
 import { Button } from "@personal-os/ui/components/button";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
-
 import { authClient } from "@/lib/auth-client";
+import { getSocialAuthRedirects } from "@/lib/auth-redirects";
 
 type SocialProvider = "google" | "github";
 
 function SocialButton({
-  callbackURL,
+  callbackPath,
   label,
   onErrorMessage,
   provider,
   glyph,
 }: {
-  callbackURL: string;
+  callbackPath: string;
   glyph: ReactNode;
   label: string;
   onErrorMessage: string;
@@ -23,9 +23,12 @@ function SocialButton({
     <Button
       className="w-full gap-2"
       onClick={() => {
+        const { callbackURL, errorCallbackURL } =
+          getSocialAuthRedirects(callbackPath);
         void authClient.signIn.social(
           {
             callbackURL,
+            errorCallbackURL,
             provider,
           },
           {
@@ -59,14 +62,14 @@ export function SocialSignInButtons({
   return (
     <div className="space-y-3">
       <SocialButton
-        callbackURL={callbackURL}
+        callbackPath={callbackURL}
         glyph={<GoogleGlyph />}
         label={googleLabel}
         onErrorMessage="Google sign-in indisponível. Configure GOOGLE_CLIENT_ID/SECRET."
         provider="google"
       />
       <SocialButton
-        callbackURL={callbackURL}
+        callbackPath={callbackURL}
         glyph={<GitHubGlyph />}
         label={githubLabel}
         onErrorMessage="GitHub sign-in indisponível. Configure GITHUB_CLIENT_ID/SECRET."
