@@ -131,6 +131,7 @@ Most formatting and common issues are automatically fixed by Biome. Run `bun x u
 - `bash scripts/cloud-materialize-env.sh` writes gitignored `.env` files from injected secrets (and generates local auth keys when missing).
 - Dev servers bind to `localhost` (IPv6 `::1`); use `http://localhost:3000` / `http://localhost:3001`, not `127.0.0.1`.
 - Canonical commands: `bun install`, `bun run db:start`, `bun run check-types`, `bun run dev:server`, `bun run dev:web`.
+- **Keep onboarding How It Works in sync with the dashboard.** The Bem-vindo tour lives in `packages/ui/src/components/blocks/how-it-works-4/` (especially `components/data.tsx` and the workspace views). Whenever dashboard IA, modules, KPIs, nav, or copy changes, update that tour in the same PR so the welcome console still mirrors the real product. Do not re-add an integrations/“Conectar” step there — that belongs to the next onboarding step.
 
 <!-- BEGIN:turborepo-agent-rules -->
 
