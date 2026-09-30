@@ -265,7 +265,7 @@ ul, ol {
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   color: var(--accent);
   margin: 0 0 0.55em;
   line-height: 1.45;
