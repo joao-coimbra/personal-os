@@ -1,3 +1,7 @@
+/** PersonalOS onboarding wizard — local handlers and multi-step CTA variants. */
+// biome-ignore-all lint/performance/noJsxPropsBind: onboarding steppers use local event handlers
+// biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: multi-step wizard shell
+// biome-ignore-all lint/style/noNestedTernary: step CTA label/icon variants
 "use client";
 
 import { HowItWorks } from "@personal-os/ui/components/blocks/how-it-works-4/components/how-it-works";
@@ -33,6 +37,7 @@ import {
   type CSSProperties,
   type FormEvent,
   type ReactNode,
+  useEffect,
   useState,
 } from "react";
 import {
@@ -50,6 +55,21 @@ import {
 } from "./onboarding-stepper";
 
 const TOTAL_STEPS = ONBOARDING_STEPS.length;
+
+function resolveOnboardingStep(stepId?: string): number {
+  if (!stepId) {
+    return 1;
+  }
+  const byId = ONBOARDING_STEPS.find((step) => step.id === stepId);
+  if (byId) {
+    return byId.value;
+  }
+  const asNumber = Number(stepId);
+  if (Number.isInteger(asNumber) && asNumber >= 1 && asNumber <= TOTAL_STEPS) {
+    return asNumber;
+  }
+  return 1;
+}
 
 /** Shared column for every onboarding step — keeps width/height stable across transitions. */
 const STEP_COLUMN = "mx-auto flex w-full max-w-xl flex-col lg:min-h-[32rem]";
@@ -84,15 +104,17 @@ const stepMotion = (direction: 1 | -1, reduce: boolean | null) =>
         transition: { duration: 0.2, ease: "easeOut" as const },
       };
 
-export type PersonalOsOnboardingPreferences = {
+export interface PersonalOsOnboardingPreferences {
   breakMinutes: string;
   focusMinutes: string;
   timezone: string;
   workEnd: string;
   workStart: string;
-};
+}
 
-export type PersonalOsOnboardingProps = {
+export interface PersonalOsOnboardingProps {
+  /** Step id (`integrations`) or 1-based index — restores progress after OAuth. */
+  initialStepId?: string;
   integrationsContent: ReactNode;
   isFinishing?: boolean;
   isSavingPreferences?: boolean;
@@ -100,8 +122,10 @@ export type PersonalOsOnboardingProps = {
   onSavePreferences: (
     prefs: PersonalOsOnboardingPreferences
   ) => Promise<void> | void;
+  /** Keep the route search in sync so OAuth returnTo can restore the step. */
+  onStepIdChange?: (stepId: string) => void;
   preferences?: Partial<PersonalOsOnboardingPreferences>;
-};
+}
 
 function StepHeading({
   description,
@@ -430,14 +454,18 @@ function OnboardingSidebar({
 }
 
 export function Onboarding({
+  initialStepId,
   integrationsContent,
   isFinishing = false,
   isSavingPreferences = false,
   onFinish,
   onSavePreferences,
+  onStepIdChange,
   preferences,
 }: PersonalOsOnboardingProps) {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(() =>
+    resolveOnboardingStep(initialStepId)
+  );
   const [timezone, setTimezone] = useState(
     preferences?.timezone ?? "America/Sao_Paulo"
   );
@@ -458,8 +486,24 @@ export function Onboarding({
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
   const shouldReduceMotion = useReducedMotion();
 
-  const currentStepMeta: (typeof ONBOARDING_STEPS)[number] =
-    ONBOARDING_STEPS[currentStep - 1] ?? ONBOARDING_STEPS[0]!;
+  useEffect(() => {
+    if (!initialStepId) {
+      return;
+    }
+    const nextStep = resolveOnboardingStep(initialStepId);
+    setCurrentStep((current) => (current === nextStep ? current : nextStep));
+  }, [initialStepId]);
+
+  const currentStepMeta: (typeof ONBOARDING_STEPS)[number] = ONBOARDING_STEPS[
+    currentStep - 1
+  ] ??
+    ONBOARDING_STEPS[0] ?? {
+      description: "",
+      id: "welcome",
+      label: "Bem-vindo",
+      title: "Seu sistema operacional pessoal",
+      value: 1,
+    };
   const isFinalStep = currentStep === TOTAL_STEPS;
   const busy = isSubmitting || isSavingPreferences || isFinishing;
   const canContinue =
@@ -477,6 +521,10 @@ export function Onboarding({
     setTransitionDirection(nextStep >= currentStep ? 1 : -1);
     setIsComplete(false);
     setCurrentStep(nextStep);
+    const nextMeta = ONBOARDING_STEPS[nextStep - 1];
+    if (nextMeta) {
+      onStepIdChange?.(nextMeta.id);
+    }
   }
 
   function handleGoalToggle(goal: FocusGoalValue, checked: boolean) {

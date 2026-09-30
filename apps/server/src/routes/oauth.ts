@@ -1,10 +1,12 @@
 import {
+  appReturnUrl,
   buildAuthorizeUrl,
   decodeOAuthState,
   encodeOAuthState,
   exchangeGoogleCode,
   exchangeNotionCode,
   type OAuthProvider,
+  type OAuthStatePayload,
   saveIntegrationToken,
 } from "@personal-os/integrations";
 import { fromNodeHeaders } from "better-auth/node";
@@ -48,7 +50,41 @@ function parseProvider(raw: string): OAuthProvider {
   return raw as OAuthProvider;
 }
 
-export async function registerOAuthRoutes(fastify: FastifyInstance) {
+async function persistOAuthTokens(
+  provider: OAuthProvider,
+  code: string,
+  userId: string
+): Promise<"ok" | "trello_client"> {
+  if (provider === "google_calendar" || provider === "gmail") {
+    const tokens = await exchangeGoogleCode(code, oauthEnv(), provider);
+    await saveIntegrationToken(db, {
+      accessToken: tokens.accessToken,
+      encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
+      externalAccountLabel: tokens.email,
+      provider,
+      refreshToken: tokens.refreshToken,
+      scopes: tokens.scopes,
+      userId,
+    });
+    return "ok";
+  }
+
+  if (provider === "notion") {
+    const tokens = await exchangeNotionCode(code, oauthEnv());
+    await saveIntegrationToken(db, {
+      accessToken: tokens.accessToken,
+      encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
+      externalAccountLabel: tokens.workspaceName,
+      provider,
+      userId,
+    });
+    return "ok";
+  }
+
+  return "trello_client";
+}
+
+export function registerOAuthRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/integrations/oauth/:provider/start",
     async (request, reply) => {
@@ -83,7 +119,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
         const message =
           error instanceof Error ? error.message : "OAuth is not configured";
         return reply.redirect(
-          `${ENV.CORS_ORIGIN}${returnTo}?error=${encodeURIComponent(message)}`
+          appReturnUrl(ENV.CORS_ORIGIN, returnTo, { error: message })
         );
       }
     }
@@ -102,22 +138,28 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
 
       if (query.error || !query.state) {
         return reply.redirect(
-          `${ENV.CORS_ORIGIN}/integrations?error=${encodeURIComponent(query.error ?? "missing_state")}`
+          appReturnUrl(ENV.CORS_ORIGIN, "/integrations", {
+            error: query.error ?? "missing_state",
+          })
         );
       }
 
-      let payload;
+      let payload: OAuthStatePayload;
       try {
         payload = decodeOAuthState(query.state, ENV.BETTER_AUTH_SECRET);
       } catch {
         return reply.redirect(
-          `${ENV.CORS_ORIGIN}/integrations?error=invalid_state`
+          appReturnUrl(ENV.CORS_ORIGIN, "/integrations", {
+            error: "invalid_state",
+          })
         );
       }
 
       if (payload.provider !== provider) {
         return reply.redirect(
-          `${ENV.CORS_ORIGIN}/integrations?error=provider_mismatch`
+          appReturnUrl(ENV.CORS_ORIGIN, "/integrations", {
+            error: "provider_mismatch",
+          })
         );
       }
 
@@ -130,50 +172,37 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
 
       if (!query.code) {
         return reply.redirect(
-          `${ENV.CORS_ORIGIN}${payload.returnTo}?error=missing_code`
+          appReturnUrl(ENV.CORS_ORIGIN, payload.returnTo, {
+            error: "missing_code",
+          })
         );
       }
 
       try {
-        if (provider === "google_calendar" || provider === "gmail") {
-          const tokens = await exchangeGoogleCode(
-            query.code,
-            oauthEnv(),
-            provider
-          );
-          await saveIntegrationToken(db, {
-            accessToken: tokens.accessToken,
-            encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
-            externalAccountLabel: tokens.email,
-            provider,
-            refreshToken: tokens.refreshToken,
-            scopes: tokens.scopes,
-            userId: session.user.id,
-          });
-        } else if (provider === "notion") {
-          const tokens = await exchangeNotionCode(query.code, oauthEnv());
-          await saveIntegrationToken(db, {
-            accessToken: tokens.accessToken,
-            encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
-            externalAccountLabel: tokens.workspaceName,
-            provider,
-            userId: session.user.id,
-          });
-        } else {
+        const result = await persistOAuthTokens(
+          provider,
+          query.code,
+          session.user.id
+        );
+        if (result === "trello_client") {
           return reply.redirect(
-            `${ENV.CORS_ORIGIN}/oauth/trello?state=${encodeURIComponent(query.state)}`
+            appReturnUrl(ENV.CORS_ORIGIN, "/oauth/trello", {
+              state: query.state,
+            })
           );
         }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "oauth_exchange_failed";
         return reply.redirect(
-          `${ENV.CORS_ORIGIN}${payload.returnTo}?error=${encodeURIComponent(message)}`
+          appReturnUrl(ENV.CORS_ORIGIN, payload.returnTo, { error: message })
         );
       }
 
       return reply.redirect(
-        `${ENV.CORS_ORIGIN}${payload.returnTo}?connected=${provider}`
+        appReturnUrl(ENV.CORS_ORIGIN, payload.returnTo, {
+          connected: provider,
+        })
       );
     }
   );

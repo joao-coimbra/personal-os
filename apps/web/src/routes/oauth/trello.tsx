@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { withSearchParams } from "@/lib/return-url";
 import { client } from "@/utils/orpc";
+
+const HASH_PREFIX_RE = /^#/;
 
 export const Route = createFileRoute("/oauth/trello")({
   component: TrelloOAuthCallback,
@@ -18,7 +21,7 @@ function TrelloOAuthCallback() {
   const [message, setMessage] = useState("Conectando Trello…");
 
   useEffect(() => {
-    const hash = window.location.hash.replace(/^#/, "");
+    const hash = window.location.hash.replace(HASH_PREFIX_RE, "");
     const params = new URLSearchParams(hash);
     const token = params.get("token");
     if (!token) {
@@ -26,7 +29,7 @@ function TrelloOAuthCallback() {
       return;
     }
 
-    void client.integrations
+    client.integrations
       .connectToken({ provider: "trello", token })
       .then(() => {
         setMessage("Trello conectado.");
@@ -34,7 +37,9 @@ function TrelloOAuthCallback() {
           returnTo?.startsWith("/") && !returnTo.startsWith("//")
             ? returnTo
             : "/integrations";
-        window.location.assign(`${target}?connected=trello`);
+        window.location.assign(
+          withSearchParams(target, { connected: "trello" })
+        );
       })
       .catch((error: unknown) => {
         setMessage(

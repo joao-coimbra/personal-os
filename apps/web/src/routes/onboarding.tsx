@@ -11,6 +11,12 @@ import { authClient } from "@/lib/auth-client";
 import type { IntegrationProvider } from "@/lib/oauth";
 import { client, orpc } from "@/utils/orpc";
 
+interface OnboardingSearch {
+  connected?: string;
+  error?: string;
+  step?: string;
+}
+
 export const Route = createFileRoute("/onboarding")({
   beforeLoad: async () => {
     const session = await authClient.getSession();
@@ -23,11 +29,11 @@ export const Route = createFileRoute("/onboarding")({
     }
   },
   component: OnboardingPage,
-  validateSearch: (
-    search: Record<string, unknown>
-  ): { connected?: string } => ({
+  validateSearch: (search: Record<string, unknown>): OnboardingSearch => ({
     connected:
       typeof search.connected === "string" ? search.connected : undefined,
+    error: typeof search.error === "string" ? search.error : undefined,
+    step: typeof search.step === "string" ? search.step : undefined,
   }),
 });
 
@@ -53,6 +59,8 @@ const onboardingProviders = [
   },
 ] as const;
 
+const INTEGRATIONS_RETURN_TO = "/onboarding?step=integrations";
+
 function providerDescription(
   provider: (typeof onboardingProviders)[number],
   isConnected: boolean
@@ -64,17 +72,28 @@ function providerDescription(
   return provider.description;
 }
 
+function resolveInitialStepId(search: OnboardingSearch): string | undefined {
+  if (search.step) {
+    return search.step;
+  }
+  // OAuth callbacks that land without `step` should still reopen integrations.
+  if (search.connected || search.error) {
+    return "integrations";
+  }
+}
+
 function OnboardingPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const integrations = useQuery(orpc.integrations.list.queryOptions());
   const search = Route.useSearch();
+  const initialStepId = resolveInitialStepId(search);
 
   useEffect(() => {
-    if (search.connected) {
+    if (search.connected || search.error) {
       queryClient.invalidateQueries().catch(() => undefined);
     }
-  }, [queryClient, search.connected]);
+  }, [queryClient, search.connected, search.error]);
 
   const connected = useMemo(() => {
     const providers = new Set(
@@ -138,8 +157,23 @@ function OnboardingPage() {
     [savePrefs]
   );
 
+  const handleStepIdChange = useCallback(
+    (stepId: string) => {
+      navigate({
+        replace: true,
+        search: (prev) => ({
+          ...prev,
+          step: stepId,
+        }),
+        to: "/onboarding",
+      });
+    },
+    [navigate]
+  );
+
   return (
     <Onboarding
+      initialStepId={initialStepId}
       integrationsContent={
         <ItemGroup className="gap-3">
           {onboardingProviders.map((provider) => {
@@ -155,7 +189,7 @@ function OnboardingPage() {
                 // biome-ignore lint/performance/noJsxPropsBind: provider-scoped disconnect
                 onDisconnect={() => disconnect.mutate(provider.id)}
                 provider={provider.id}
-                returnTo="/onboarding"
+                returnTo={INTEGRATIONS_RETURN_TO}
               />
             );
           })}
@@ -165,6 +199,7 @@ function OnboardingPage() {
       isSavingPreferences={savePrefs.isPending}
       onFinish={handleFinish}
       onSavePreferences={handleSavePreferences}
+      onStepIdChange={handleStepIdChange}
     />
   );
 }
