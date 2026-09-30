@@ -190,28 +190,16 @@ function Sidebar({ activeNavId }: { activeNavId: string }) {
 export function AppShell({
   activeNavId,
   children,
-  compact = false,
 }: {
   activeNavId: string;
   children: ReactNode;
-  /** Embedded welcome preview: fill card width; bottom may still crop. */
-  compact?: boolean;
 }) {
   return (
     <div
-      // Full showcase crops the console at the bottom on purpose. Compact fills
-      // the wider welcome card by width so sidebar + KPIs + right panels all
-      // read across — do not height-limit the scale or the shell letterboxes
-      // and looks half-clipped. Keep transform; `zoom` is not portable enough.
-      className={cn(
-        "absolute h-[1060px] w-[1400px] origin-top-left",
-        compact ? "top-[2.5cqw] left-[2cqw]" : "top-[6.25cqw] left-[6.25cqw]"
-      )}
-      style={{
-        transform: compact
-          ? "scale(calc(96cqw / 1400px))"
-          : "scale(calc(100cqw / 1600px))",
-      }}
+      // Taller than the visible frame on purpose: it crops the console at the
+      // bottom. Keep the transform; `zoom` is not portable enough to swap in.
+      className="absolute top-[6.25cqw] left-[6.25cqw] h-[1060px] w-[1400px] origin-top-left"
+      style={{ transform: "scale(calc(100cqw / 1600px))" }}
     >
       <Card
         className={cn(

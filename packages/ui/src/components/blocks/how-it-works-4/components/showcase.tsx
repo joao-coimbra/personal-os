@@ -135,18 +135,11 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
           ))}
         </TabsList>
 
-        {/*
-          Compact: width container + fixed height so AppShell scales to fill the
-          wide welcome card. Avoid aspect+max-h — that combo let cqw track a
-          wider parent while the clip box shrank, cutting the mock on the right.
-        */}
-        <div className={cn("w-full", !compact && "@container")}>
+        <div className="@container w-full">
           <div
             className={cn(
-              "relative w-full overflow-clip",
-              // Welcome HIW: intentionally tall fixed viewport (not max-h-60).
-              // Fixed height + w-full avoids aspect/max-h shrinking used width.
-              compact ? "@container h-80 sm:h-96 lg:h-[28rem]" : "aspect-[20/9]"
+              "relative overflow-clip",
+              compact ? "aspect-[16/9] max-h-60" : "aspect-[20/9]"
             )}
           >
             <div
@@ -161,7 +154,7 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
                 className="absolute inset-x-[5cqw] top-[5cqw] -bottom-[4cqw] rounded-[calc(var(--radius)*1.5)] bg-white/10 ring-1 ring-white/25 ring-inset"
               />
               <div className="absolute inset-0">
-                <AppShell activeNavId={active.navId} compact={compact}>
+                <AppShell activeNavId={active.navId}>
                   {STEPS.filter((item) => item.value === value).map((item) => {
                     const View = WORKSPACES[item.value];
                     if (!View) {
