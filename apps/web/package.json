@@ -12,7 +12,9 @@
     "env:generate": "varlock codegen",
     "serve": "vite preview",
     "start": "vite",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test:e2e": "playwright test",
+    "test:e2e:auth": "playwright test e2e/auth-login.spec.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.96",
@@ -44,6 +46,7 @@
   },
   "devDependencies": {
     "@personal-os/config": "workspace:*",
+    "@playwright/test": "^1.63.0",
     "@tanstack/react-query-devtools": "^5.102.8",
     "@tanstack/react-router-devtools": "^1.167.1",
     "@tanstack/router-plugin": "^1.168.35",
