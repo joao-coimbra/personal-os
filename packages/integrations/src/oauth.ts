@@ -24,6 +24,11 @@ export interface OAuthEnv {
 export interface OAuthStatePayload {
   /** PKCE verifier for Atlassian/Trello OAuth 2.0. */
   codeVerifier?: string;
+  /**
+   * `popup` returns to `/oauth/popup-done` so the opener stays on the app.
+   * `page` (default) navigates the full tab back to `returnTo`.
+   */
+  displayMode?: "popup" | "page";
   nonce: string;
   provider: OAuthProvider;
   returnTo: string;

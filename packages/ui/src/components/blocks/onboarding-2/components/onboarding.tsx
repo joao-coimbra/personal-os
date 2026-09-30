@@ -33,6 +33,7 @@ import {
   type CSSProperties,
   type FormEvent,
   type ReactNode,
+  useEffect,
   useState,
 } from "react";
 import {
@@ -93,6 +94,8 @@ export type PersonalOsOnboardingPreferences = {
 };
 
 export type PersonalOsOnboardingProps = {
+  /** Controlled step id (e.g. from URL). When set, syncs with internal step. */
+  stepId?: string;
   integrationsContent: ReactNode;
   isFinishing?: boolean;
   isSavingPreferences?: boolean;
@@ -100,6 +103,8 @@ export type PersonalOsOnboardingProps = {
   onSavePreferences: (
     prefs: PersonalOsOnboardingPreferences
   ) => Promise<void> | void;
+  /** Called whenever the active step id changes (for URL sync). */
+  onStepIdChange?: (stepId: string) => void;
   preferences?: Partial<PersonalOsOnboardingPreferences>;
 };
 
@@ -429,15 +434,31 @@ function OnboardingSidebar({
   );
 }
 
+function stepNumberFromId(stepId: string | undefined): number {
+  if (!stepId) {
+    return 1;
+  }
+  const match = ONBOARDING_STEPS.find((step) => step.id === stepId);
+  return match?.value ?? 1;
+}
+
+function stepIdFromNumber(step: number): string {
+  return ONBOARDING_STEPS[step - 1]?.id ?? ONBOARDING_STEPS[0]?.id ?? "welcome";
+}
+
 export function Onboarding({
+  stepId,
   integrationsContent,
   isFinishing = false,
   isSavingPreferences = false,
   onFinish,
   onSavePreferences,
+  onStepIdChange,
   preferences,
 }: PersonalOsOnboardingProps) {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(() =>
+    stepNumberFromId(stepId)
+  );
   const [timezone, setTimezone] = useState(
     preferences?.timezone ?? "America/Sao_Paulo"
   );
@@ -458,6 +479,14 @@ export function Onboarding({
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
   const shouldReduceMotion = useReducedMotion();
 
+  useEffect(() => {
+    if (!stepId || isComplete) {
+      return;
+    }
+    const next = stepNumberFromId(stepId);
+    setCurrentStep((current) => (current === next ? current : next));
+  }, [isComplete, stepId]);
+
   const currentStepMeta: (typeof ONBOARDING_STEPS)[number] =
     ONBOARDING_STEPS[currentStep - 1] ?? ONBOARDING_STEPS[0]!;
   const isFinalStep = currentStep === TOTAL_STEPS;
@@ -477,6 +506,7 @@ export function Onboarding({
     setTransitionDirection(nextStep >= currentStep ? 1 : -1);
     setIsComplete(false);
     setCurrentStep(nextStep);
+    onStepIdChange?.(stepIdFromNumber(nextStep));
   }
 
   function handleGoalToggle(goal: FocusGoalValue, checked: boolean) {

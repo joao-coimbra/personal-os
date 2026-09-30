@@ -9,7 +9,11 @@ import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
 import { ConnectProviderCard } from "@/features/integrations/connect-provider-card";
-import type { IntegrationProvider } from "@/lib/oauth";
+import {
+  type IntegrationProvider,
+  OAUTH_POPUP_MESSAGE,
+  type OAuthPopupMessage,
+} from "@/lib/oauth";
 import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_app/integrations")({
@@ -73,13 +77,34 @@ function IntegrationsPage() {
 
   useEffect(() => {
     if (search.connected) {
-      toast.success(`${search.connected.replace("_", " ")} conectado`);
-      void queryClient.invalidateQueries();
+      toast.success(`${search.connected.replaceAll("_", " ")} conectado`);
+      queryClient.invalidateQueries().catch(() => undefined);
     }
     if (search.error) {
       toast.error(search.error);
     }
   }, [queryClient, search.connected, search.error]);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+      const data = event.data as OAuthPopupMessage | null;
+      if (!data || data.type !== OAUTH_POPUP_MESSAGE) {
+        return;
+      }
+      if (data.connected) {
+        toast.success(`${data.connected.replaceAll("_", " ")} conectado`);
+        queryClient.invalidateQueries().catch(() => undefined);
+      }
+      if (data.error) {
+        toast.error(data.error);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [queryClient]);
 
   const disconnect = useMutation({
     mutationFn: (provider: IntegrationProvider) =>

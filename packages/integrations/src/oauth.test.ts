@@ -64,6 +64,22 @@ describe("oauth state", () => {
     );
     expect(() => decodeOAuthState(state, "other-secret")).toThrow();
   });
+
+  test("preserves displayMode and returnTo with query in signed state", () => {
+    const state = encodeOAuthState(
+      {
+        displayMode: "popup",
+        nonce: "n2",
+        provider: "trello",
+        returnTo: "/onboarding?step=integrations",
+        userId: "user-b",
+      },
+      SECRET
+    );
+    const payload = decodeOAuthState(state, SECRET);
+    expect(payload.displayMode).toBe("popup");
+    expect(payload.returnTo).toBe("/onboarding?step=integrations");
+  });
 });
 
 describe("authorize urls", () => {
