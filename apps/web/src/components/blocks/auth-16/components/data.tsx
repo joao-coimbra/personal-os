@@ -1,7 +1,9 @@
 import { GithubDark } from "@personal-os/ui/components/svgs/githubDark";
 import { GithubLight } from "@personal-os/ui/components/svgs/githubLight";
 import { Google } from "@personal-os/ui/components/svgs/google";
-import { CalendarDays, Kanban, NotebookPen } from "lucide-react";
+import { GoogleCalendar } from "@personal-os/ui/components/svgs/googleCalendar";
+import { Notion } from "@personal-os/ui/components/svgs/notion";
+import { Trello } from "@personal-os/ui/components/svgs/trello";
 import type { ReactNode } from "react";
 
 export interface AuthProvider {
@@ -47,20 +49,20 @@ export const AUTH16_PROVIDERS: AuthProvider[] = [
   },
 ];
 
-/** Product integrations shown on the auth footer — not sponsor marks. */
+/** Product integrations shown on the auth footer — brand marks, not generic icons. */
 export const AUTH16_CAPABILITIES: AuthCapability[] = [
   {
-    icon: <Kanban aria-hidden="true" className="size-3.5" />,
+    icon: <Trello aria-hidden="true" className="size-4" />,
     id: "trello",
     name: "Trello",
   },
   {
-    icon: <CalendarDays aria-hidden="true" className="size-3.5" />,
+    icon: <GoogleCalendar aria-hidden="true" className="size-4" />,
     id: "google_calendar",
     name: "Google Calendar",
   },
   {
-    icon: <NotebookPen aria-hidden="true" className="size-3.5" />,
+    icon: <Notion aria-hidden="true" className="size-4" />,
     id: "notion",
     name: "Notion",
   },
