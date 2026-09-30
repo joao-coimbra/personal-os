@@ -132,11 +132,8 @@ function WelcomeStep({
   return (
     <div aria-live="polite" className="flex flex-col gap-5">
       <StepHeading description={description} title={title} />
-      {/*
-        Nearly full FramePanel width. Title + Começar stay max-w-xl.
-        Do not restore max-w-3xl — user asked for MUCH wider card.
-      */}
-      <div className="relative left-1/2 w-[min(72rem,calc(100vw-22rem))] max-w-none -translate-x-1/2 max-lg:w-[min(72rem,calc(100vw-1.5rem))]">
+      {/* Bleed past STEP_COLUMN toward FramePanel edges; title/button stay max-w-xl. */}
+      <div className="-mx-3 max-w-none sm:-mx-6 lg:-mx-12 xl:-mx-24 xl:max-w-3xl">
         <HowItWorks embedded />
       </div>
     </div>
