@@ -38,6 +38,9 @@ const GMAIL_SCOPES = [
 
 const GOOGLE_PROVIDERS = new Set<OAuthProvider>(["google_calendar", "gmail"]);
 
+/** Classic Trello Power-Up API key (32 hex). Atlassian OAuth client ids are rejected. */
+const TRELLO_POWERUP_API_KEY_RE = /^[0-9a-f]{32}$/i;
+
 function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
@@ -76,6 +79,30 @@ export function callbackUrl(
   provider: OAuthProvider
 ): string {
   return `${serverOrigin}/api/integrations/oauth/${provider}/callback`;
+}
+
+/**
+ * Build an absolute redirect back into the web app, merging query params onto a
+ * relative returnTo that may already include `?step=…`.
+ */
+export function appReturnUrl(
+  appOrigin: string,
+  returnTo: string,
+  params: Record<string, string> = {}
+): string {
+  const origin = new URL(appOrigin);
+  const safePath =
+    returnTo.startsWith("/") && !returnTo.startsWith("//")
+      ? returnTo
+      : "/integrations";
+  const url = new URL(safePath, origin);
+  if (url.origin !== origin.origin) {
+    return new URL("/integrations", origin).href;
+  }
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  return url.href;
 }
 
 function googleScopesFor(provider: OAuthProvider): string {
@@ -122,9 +149,16 @@ export function buildAuthorizeUrl(
     return `https://api.notion.com/v1/oauth/authorize?${params.toString()}`;
   }
 
-  // Trello returns token in the fragment; callback lands on the web app.
+  // Classic Trello Auth (/1/authorize) requires the Power-Up API key (32 hex).
+  // Atlassian OAuth client IDs (e.g. mixed alphanumeric / ATOA secrets) produce
+  // "App not found" on trello.com and must not be used here.
   if (!env.trelloApiKey) {
     throw new Error("TRELLO_API_KEY is not configured.");
+  }
+  if (!TRELLO_POWERUP_API_KEY_RE.test(env.trelloApiKey)) {
+    throw new Error(
+      "TRELLO_API_KEY must be the classic 32-character hex Power-Up API key from https://trello.com/power-ups/admin (not an Atlassian OAuth client id)."
+    );
   }
   const returnUrl = `${env.appOrigin}/oauth/trello?state=${encodeURIComponent(state)}&returnTo=${encodeURIComponent(returnTo)}`;
   const params = new URLSearchParams({
@@ -180,7 +214,7 @@ export async function exchangeGoogleCode(
     );
     if (profile.ok) {
       const json = (await profile.json()) as { email?: string };
-      email = json.email;
+      ({ email } = json);
     }
   } catch {
     // optional label

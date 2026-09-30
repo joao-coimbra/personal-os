@@ -6,6 +6,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Classic Trello /1/authorize requires a 32-character hex Power-Up API key.
+# Atlassian OAuth client IDs (mixed alphanumeric) must never be written to .env.
+is_trello_powerup_api_key() {
+  [[ "$1" =~ ^[0-9a-fA-F]{32}$ ]]
+}
+
 upsert_env() {
   local file="$1"
   local key="$2"
@@ -26,6 +32,48 @@ upsert_env() {
     mv "${file}.tmp" "$file"
   fi
   printf '%s=%s\n' "$key" "$value" >>"$file"
+}
+
+# Upsert TRELLO_API_KEY only when the candidate is a classic 32-hex Power-Up key.
+# If a valid hex secret is provided and .env still has an Atlassian-style key, replace it.
+upsert_trello_api_key() {
+  local file="$1"
+  local value="$2"
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+
+  local current=""
+  if grep -q "^TRELLO_API_KEY=" "$file" 2>/dev/null; then
+    current="$(grep "^TRELLO_API_KEY=" "$file" | head -1 | cut -d= -f2-)"
+  fi
+
+  if [[ -n "${value}" ]] && ! is_trello_powerup_api_key "${value}"; then
+    echo "warn: skipping TRELLO_API_KEY materialize — value is not a classic 32-hex Power-Up key from https://trello.com/power-ups/admin (got non-hex / Atlassian-style id). Leaving existing .env value unchanged." >&2
+    return 0
+  fi
+
+  if [[ -n "${current}" ]] && is_trello_powerup_api_key "${current}"; then
+    # Keep a valid existing key unless we have a different valid hex to write and current is empty (handled above).
+    return 0
+  fi
+
+  if [[ -z "${value}" ]]; then
+    if [[ -n "${current}" ]] && ! is_trello_powerup_api_key "${current}"; then
+      echo "warn: apps/server/.env TRELLO_API_KEY is set but is not a classic 32-hex Power-Up key; Connect Trello will fail until replaced." >&2
+    fi
+    return 0
+  fi
+
+  # Valid hex secret provided: clear invalid/empty existing key and write the new one.
+  if grep -q "^TRELLO_API_KEY=" "$file" 2>/dev/null; then
+    # shellcheck disable=SC2094
+    grep -v "^TRELLO_API_KEY=" "$file" >"${file}.tmp" || true
+    mv "${file}.tmp" "$file"
+  fi
+  printf 'TRELLO_API_KEY=%s\n' "$value" >>"$file"
+  if [[ -n "${current}" ]] && ! is_trello_powerup_api_key "${current}"; then
+    echo "warn: replaced invalid (non-hex) TRELLO_API_KEY in ${file} with classic Power-Up hex key from secrets." >&2
+  fi
 }
 
 rand_hex() {
@@ -73,7 +121,7 @@ upsert_env "${SERVER_ENV}" "GITHUB_CLIENT_ID" "${GITHUB_CLIENT_ID:-}"
 upsert_env "${SERVER_ENV}" "GITHUB_CLIENT_SECRET" "${GITHUB_CLIENT_SECRET:-}"
 upsert_env "${SERVER_ENV}" "NOTION_CLIENT_ID" "${NOTION_CLIENT_ID:-}"
 upsert_env "${SERVER_ENV}" "NOTION_CLIENT_SECRET" "${NOTION_CLIENT_SECRET:-}"
-upsert_env "${SERVER_ENV}" "TRELLO_API_KEY" "${TRELLO_API_KEY:-}"
+upsert_trello_api_key "${SERVER_ENV}" "${TRELLO_API_KEY:-}"
 upsert_env "${SERVER_ENV}" "TRELLO_API_SECRET" "${TRELLO_API_SECRET:-}"
 upsert_env "${SERVER_ENV}" "RESEND_API_KEY" "${RESEND_API_KEY:-}"
 upsert_env "${SERVER_ENV}" "RESEND_FROM_EMAIL" "${RESEND_FROM_EMAIL:-}"

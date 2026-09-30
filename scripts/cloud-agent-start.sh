@@ -53,6 +53,35 @@ else
     fi
     printf '%s=%s\n' "$key" "$value" >>"$file"
   }
+  # Classic Trello /1/authorize requires 32-hex Power-Up key; never inject Atlassian client ids.
+  upsert_trello_api_key() {
+    local file="$1" value="$2"
+    local current=""
+    if grep -q "^TRELLO_API_KEY=" "$file" 2>/dev/null; then
+      current="$(grep "^TRELLO_API_KEY=" "$file" | head -1 | cut -d= -f2-)"
+    fi
+    if [[ -n "${value}" ]] && ! [[ "${value}" =~ ^[0-9a-fA-F]{32}$ ]]; then
+      echo "warn: skipping TRELLO_API_KEY materialize — value is not a classic 32-hex Power-Up key (Atlassian-style ids cause App not found)." >&2
+      return 0
+    fi
+    if [[ -n "${current}" ]] && [[ "${current}" =~ ^[0-9a-fA-F]{32}$ ]]; then
+      return 0
+    fi
+    if [[ -z "${value}" ]]; then
+      if [[ -n "${current}" ]] && ! [[ "${current}" =~ ^[0-9a-fA-F]{32}$ ]]; then
+        echo "warn: apps/server/.env TRELLO_API_KEY is set but is not a classic 32-hex Power-Up key; Connect Trello will fail until replaced." >&2
+      fi
+      return 0
+    fi
+    if grep -q "^TRELLO_API_KEY=" "$file" 2>/dev/null; then
+      grep -v "^TRELLO_API_KEY=" "$file" >"${file}.tmp" || true
+      mv "${file}.tmp" "$file"
+    fi
+    printf 'TRELLO_API_KEY=%s\n' "$value" >>"$file"
+    if [[ -n "${current}" ]] && ! [[ "${current}" =~ ^[0-9a-fA-F]{32}$ ]]; then
+      echo "warn: replaced invalid (non-hex) TRELLO_API_KEY in ${file} with classic Power-Up hex key from secrets." >&2
+    fi
+  }
   AUTH_SECRET="${BETTER_AUTH_SECRET:-$(openssl rand -hex 32)}"
   INTEGRATION_KEY="${INTEGRATION_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
   upsert "$SERVER_ENV" NODE_ENV "${NODE_ENV:-development}"
@@ -68,7 +97,7 @@ else
   upsert "$SERVER_ENV" GITHUB_CLIENT_SECRET "${GITHUB_CLIENT_SECRET:-}"
   upsert "$SERVER_ENV" NOTION_CLIENT_ID "${NOTION_CLIENT_ID:-}"
   upsert "$SERVER_ENV" NOTION_CLIENT_SECRET "${NOTION_CLIENT_SECRET:-}"
-  upsert "$SERVER_ENV" TRELLO_API_KEY "${TRELLO_API_KEY:-}"
+  upsert_trello_api_key "$SERVER_ENV" "${TRELLO_API_KEY:-}"
   upsert "$SERVER_ENV" TRELLO_API_SECRET "${TRELLO_API_SECRET:-}"
   upsert "$SERVER_ENV" RESEND_API_KEY "${RESEND_API_KEY:-}"
   upsert "$SERVER_ENV" RESEND_FROM_EMAIL "${RESEND_FROM_EMAIL:-}"
