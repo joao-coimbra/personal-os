@@ -27,7 +27,7 @@ export async function getIntegrationToken(
       )
     )
     .limit(1);
-  const row = rows[0];
+  const [row] = rows;
   if (!row?.accessTokenEncrypted) {
     return null;
   }
@@ -56,15 +56,19 @@ export async function saveIntegrationToken(
       )
     )
     .limit(1);
-  const existing = existingRows[0];
+  const [existing] = existingRows;
+
+  const refreshTokenEncrypted = input.refreshToken
+    ? encryptSecret(input.refreshToken, input.encryptionKey)
+    : (existing?.refreshTokenEncrypted ?? null);
 
   const values = {
     accessTokenEncrypted: encryptSecret(input.accessToken, input.encryptionKey),
-    externalAccountLabel: input.externalAccountLabel,
-    refreshTokenEncrypted: input.refreshToken
-      ? encryptSecret(input.refreshToken, input.encryptionKey)
-      : null,
-    scopes: input.scopes,
+    errorCode: null,
+    externalAccountLabel:
+      input.externalAccountLabel ?? existing?.externalAccountLabel ?? null,
+    refreshTokenEncrypted,
+    scopes: input.scopes ?? existing?.scopes ?? null,
     status: "connected" as const,
     updatedAt: new Date(),
   };
@@ -85,4 +89,32 @@ export async function saveIntegrationToken(
     ...values,
   });
   return id;
+}
+
+/** Clears secrets and marks the connection disconnected for one user+provider. */
+export async function clearIntegrationConnection(
+  db: Database,
+  userId: string,
+  provider: IntegrationProvider
+): Promise<void> {
+  await db
+    .update(integrationConnection)
+    .set({
+      accessTokenEncrypted: null,
+      errorCode: null,
+      externalAccountLabel: null,
+      lastSyncAt: null,
+      metadata: null,
+      refreshTokenEncrypted: null,
+      scopes: null,
+      status: "disconnected",
+      tokenExpiresAt: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(integrationConnection.userId, userId),
+        eq(integrationConnection.provider, provider)
+      )
+    );
 }

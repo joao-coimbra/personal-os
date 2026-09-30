@@ -1,6 +1,9 @@
 import { integrationConnection } from "@personal-os/db/schema/app";
-import { saveIntegrationToken } from "@personal-os/integrations";
-import { and, eq } from "drizzle-orm";
+import {
+  clearIntegrationConnection,
+  saveIntegrationToken,
+} from "@personal-os/integrations";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure } from "../index";
@@ -34,19 +37,11 @@ export const integrationsRouter = {
   disconnect: protectedProcedure
     .input(z.object({ provider: providerSchema }))
     .handler(async ({ context, input }) => {
-      await context.db
-        .update(integrationConnection)
-        .set({
-          accessTokenEncrypted: null,
-          status: "disconnected",
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(integrationConnection.userId, context.session.user.id),
-            eq(integrationConnection.provider, input.provider)
-          )
-        );
+      await clearIntegrationConnection(
+        context.db,
+        context.session.user.id,
+        input.provider
+      );
       return { success: true };
     }),
   getAuthorizeUrl: protectedProcedure
