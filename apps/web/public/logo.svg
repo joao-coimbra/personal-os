@@ -1,0 +1,82 @@
+<svg
+  aria-labelledby="personalos-logo-title"
+  fill="none"
+  role="img"
+  viewBox="0 0 280 64"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <title id="personalos-logo-title">PersonalOS</title>
+  <defs>
+    <linearGradient
+      gradientUnits="userSpaceOnUse"
+      id="pos-logo-bg"
+      x1="8"
+      x2="56"
+      y1="6"
+      y2="58"
+    >
+      <stop stop-color="#0F766E" />
+      <stop offset="1" stop-color="#134E4A" />
+    </linearGradient>
+    <linearGradient
+      gradientUnits="userSpaceOnUse"
+      id="pos-logo-ring"
+      x1="18"
+      x2="48"
+      y1="14"
+      y2="50"
+    >
+      <stop stop-color="#99F6E4" />
+      <stop offset="1" stop-color="#5EEAD4" />
+    </linearGradient>
+  </defs>
+
+  <!-- mark -->
+  <rect fill="url(#pos-logo-bg)" height="64" rx="16" width="64" />
+  <rect
+    fill="#042F2E"
+    fill-opacity="0.35"
+    height="48"
+    rx="12"
+    width="48"
+    x="8"
+    y="8"
+  />
+  <ellipse
+    cx="32"
+    cy="32"
+    rx="18"
+    ry="11"
+    stroke="url(#pos-logo-ring)"
+    stroke-opacity="0.55"
+    stroke-width="2"
+    transform="rotate(-28 32 32)"
+  />
+  <ellipse
+    cx="32"
+    cy="32"
+    rx="18"
+    ry="11"
+    stroke="#CCFBF1"
+    stroke-opacity="0.35"
+    stroke-width="1.5"
+    transform="rotate(42 32 32)"
+  />
+  <circle cx="32" cy="32" fill="#F0FDFA" r="7.5" />
+  <circle cx="32" cy="32" fill="#14B8A6" r="3.25" />
+  <circle cx="46.5" cy="24" fill="#5EEAD4" r="2.25" />
+  <circle cx="21" cy="43.5" fill="#99F6E4" fill-opacity="0.9" r="1.75" />
+
+  <!-- wordmark -->
+  <text
+    fill="#0F172A"
+    font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif"
+    font-size="28"
+    font-weight="650"
+    letter-spacing="-0.04em"
+    x="80"
+    y="41"
+  >
+    PersonalOS
+  </text>
+</svg>

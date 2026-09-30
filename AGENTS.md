@@ -124,3 +124,22 @@ Biome's linter will catch most issues automatically. Focus your attention on:
 ---
 
 Most formatting and common issues are automatically fixed by Biome. Run `bun x ultracite fix` before committing to ensure compliance.
+
+## Cloud Agent notes
+
+- Prefer system PostgreSQL via `bash scripts/ensure-postgres.sh` when Docker Compose cannot pull images in nested environments.
+- `bash scripts/cloud-materialize-env.sh` writes gitignored `.env` files from injected secrets (and generates local auth keys when missing).
+- Dev servers bind to `localhost` (IPv6 `::1`); use `http://localhost:3000` / `http://localhost:3001`, not `127.0.0.1`.
+- Canonical commands: `bun install`, `bun run db:start`, `bun run check-types`, `bun run dev:server`, `bun run dev:web`.
+- **Keep onboarding How It Works in sync with the dashboard.** The Bem-vindo tour lives in `packages/ui/src/components/blocks/how-it-works-4/` (especially `components/data.tsx` and the workspace views). Whenever dashboard IA, modules, KPIs, nav, or copy changes, update that tour in the same PR so the welcome console still mirrors the real product. Do not re-add an integrations/“Conectar” step there — that belongs to the next onboarding step.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->

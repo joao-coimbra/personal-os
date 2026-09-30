@@ -14,6 +14,12 @@
     },
     "better-auth": {
       "url": "https://mcp.better-auth.com/mcp"
+    },
+    "reui": {
+      "url": "https://mcp.reui.io/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:REUI_LICENSE_KEY}"
+      }
     }
   }
 }

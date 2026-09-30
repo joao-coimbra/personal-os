@@ -18,11 +18,16 @@ const OVERRIDE_KEYS = new Map([
 const args = process.argv.slice(2);
 const separatorIndex = args.indexOf("--");
 const scriptArgs = separatorIndex === -1 ? args : args.slice(0, separatorIndex);
-const forwardedArgs = separatorIndex === -1 ? [] : args.slice(separatorIndex + 1);
+const forwardedArgs =
+  separatorIndex === -1 ? [] : args.slice(separatorIndex + 1);
 
 const environment =
-  scriptArgs[0] && VALID_ENVIRONMENTS.has(scriptArgs[0]) ? scriptArgs[0] : DEFAULT_ENVIRONMENT;
-const remainingArgs = scriptArgs.slice(VALID_ENVIRONMENTS.has(scriptArgs[0] ?? "") ? 1 : 0);
+  scriptArgs[0] && VALID_ENVIRONMENTS.has(scriptArgs[0])
+    ? scriptArgs[0]
+    : DEFAULT_ENVIRONMENT;
+const remainingArgs = scriptArgs.slice(
+  VALID_ENVIRONMENTS.has(scriptArgs[0] ?? "") ? 1 : 0
+);
 // Split remaining args into env-file paths and passthrough Vercel CLI flags.
 // A bare token counts as a file only when it exists on disk, so flags and their
 // values (e.g. `--scope my-team`) forward correctly regardless of argument order.
@@ -55,8 +60,12 @@ for (const file of envFiles) {
     ? new Set(Object.keys(parseEnv(readFileSync(schemaFile, "utf8"))))
     : undefined;
 
-  for (const [key, value] of Object.entries(parseEnv(readFileSync(file, "utf8")))) {
-    if (SKIP_KEYS.has(key)) continue;
+  for (const [key, value] of Object.entries(
+    parseEnv(readFileSync(file, "utf8"))
+  )) {
+    if (SKIP_KEYS.has(key)) {
+      continue;
+    }
     if (declaredKeys && !declaredKeys.has(key)) {
       undeclaredKeys.push(key);
       continue;
@@ -71,11 +80,13 @@ for (const file of envFiles) {
 }
 
 if (undeclaredKeys.length > 0) {
-  console.log(`Skipping ${undeclaredKeys.join(", ")}: not declared in .env.schema.`);
+  console.log(
+    `Skipping ${undeclaredKeys.join(", ")}: not declared in .env.schema.`
+  );
 }
 if (emptyKeys.length > 0) {
   console.warn(
-    `Warning: ${emptyKeys.join(", ")} ${emptyKeys.length === 1 ? "is" : "are"} empty in your .env file(s) and won't be synced. Required values must be set before deploying, or the build or server fails env validation.`,
+    `Warning: ${emptyKeys.join(", ")} ${emptyKeys.length === 1 ? "is" : "are"} empty in your .env file(s) and won't be synced. Required values must be set before deploying, or the build or server fails env validation.`
   );
 }
 
@@ -90,7 +101,7 @@ const localKeys = [...env.entries()]
   .map(([key]) => key);
 if (localKeys.length > 0) {
   console.warn(
-    `Warning: ${localKeys.join(", ")} look${localKeys.length === 1 ? "s" : ""} like local-only value(s). Update them in your .env file(s) and re-run this sync if your deployed app should not point at local endpoints.`,
+    `Warning: ${localKeys.join(", ")} look${localKeys.length === 1 ? "s" : ""} like local-only value(s). Update them in your .env file(s) and re-run this sync if your deployed app should not point at local endpoints.`
   );
 }
 
@@ -110,12 +121,12 @@ for (const [key, value] of env.entries()) {
       ...vercelArgs,
     ],
     {
-      input: `${value}\n`,
-      stdio: ["pipe", "inherit", "inherit"],
       encoding: "utf8",
+      input: `${value}\n`,
       // Windows resolves bunx/npx/pnpm via .cmd shims, which need a shell
       shell: process.platform === "win32",
-    },
+      stdio: ["pipe", "inherit", "inherit"],
+    }
   );
 
   if (result.error) {

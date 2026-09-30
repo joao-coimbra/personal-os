@@ -1,5 +1,7 @@
 # personal-os
 
+PersonalOS — sistema operacional pessoal com IA, Trello, Google Calendar e dashboard de produtividade. Documentação de entrega acadêmica: [README-ACADEMICO.md](./README-ACADEMICO.md). Variáveis de ambiente: [`.env.example`](./.env.example).
+
 This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Fastify, ORPC, and more.
 
 ## Features

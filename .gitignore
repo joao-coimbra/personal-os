@@ -50,6 +50,9 @@ lerna-debug.log*
 # Testing
 coverage
 .nyc_output
+.playwright-mcp
+**/test-results/
+**/playwright-report/
 
 # Misc
 *.tgz
