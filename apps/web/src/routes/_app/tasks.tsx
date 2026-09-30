@@ -81,23 +81,6 @@ function filterTasks(
   });
 }
 
-function listCardTitle(filter: TaskFilter | undefined): string {
-  if (filter === "completed") {
-    return "Cards concluídos";
-  }
-  if (filter) {
-    return `Cards · ${FILTER_TITLE[filter]}`;
-  }
-  return "All open cards";
-}
-
-function emptyFilterMessage(filter: TaskFilter | undefined): string {
-  if (filter === "completed") {
-    return "Cards concluídos ainda não são sincronizados do Trello nesta view.";
-  }
-  return "Nenhuma task neste filtro.";
-}
-
 function QuadrantGrid({
   filteredIds,
   items,
@@ -125,7 +108,7 @@ function QuadrantGrid({
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {(byQuadrant.get(q) ?? []).slice(0, 6).map((t) => (
-              <div className="text-sm" key={t.id}>
+              <div className="truncate text-sm" key={t.id}>
                 {t.name}
               </div>
             ))}
@@ -140,11 +123,8 @@ function QuadrantGrid({
 }
 
 function TasksPage() {
-<<<<<<< HEAD
   const { filter } = Route.useSearch();
   const tasks = useQuery(orpc.tasks.list.queryOptions({ input: {} }));
-=======
->>>>>>> fba5668 (feat(tasks): dual Kanban/Gantt boards on /tasks with Trello move API)
   const classified = useQuery(orpc.tasks.classify.queryOptions());
 
   const filteredTasks = useMemo(
@@ -165,100 +145,60 @@ function TasksPage() {
   const title = filter ? FILTER_TITLE[filter] : "Tasks";
   const subtitle = filter
     ? "Filtro da barra lateral"
-    : "Trello + Matriz de Eisenhower";
+    : "Quadro Kanban e Gantt do playbook — Trello + Eisenhower";
   const showQuadrants = filter !== "completed";
-  const showEmpty =
-    !(tasks.isLoading || tasks.error) && filteredTasks.length === 0;
+  const showBoards = !filter;
 
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
       <div>
-<<<<<<< HEAD
         <h1 className="font-semibold text-2xl">{title}</h1>
         <p className="text-muted-foreground text-sm">{subtitle}</p>
       </div>
+
       {showQuadrants ? (
         <QuadrantGrid filteredIds={filteredIds} items={classified.data ?? []} />
       ) : null}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{listCardTitle(filter)}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {tasks.isLoading ? <p className="text-sm">Carregando…</p> : null}
-          {tasks.error ? (
-            <p className="text-destructive text-sm">
-              {(tasks.error as Error).message}
-            </p>
-          ) : null}
-          {showEmpty ? (
-            <p className="text-muted-foreground text-sm">
-              {emptyFilterMessage(filter)}
-            </p>
-          ) : null}
-          {filteredTasks.map((t) => (
-            <div
-              className="flex items-center justify-between gap-2 text-sm"
-              key={t.id}
-            >
-              <span>{t.name}</span>
-              <div className="flex gap-1">
-                {t.overdue ? (
-                  <Badge variant="destructive">overdue</Badge>
-                ) : null}
-                {t.quadrant ? (
-                  <Badge variant="secondary">{t.quadrant}</Badge>
-                ) : null}
-=======
-        <h1 className="font-semibold text-2xl">Tasks</h1>
-        <p className="text-muted-foreground text-sm">
-          Quadro Kanban e Gantt do playbook — Trello + Eisenhower
-        </p>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {(["do", "schedule", "delegate", "eliminate"] as const).map((q) => (
-          <Card key={q}>
-            <CardHeader>
-              <CardTitle className="text-sm capitalize">{q}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {(byQuadrant.get(q) ?? []).slice(0, 4).map((t) => (
-                <div className="truncate text-sm" key={t.id}>
-                  {t.name}
-                </div>
-              ))}
-              {!byQuadrant.get(q)?.length && (
-                <p className="text-muted-foreground text-xs">—</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {showBoards ? <TasksBoards /> : null}
 
-      <TasksBoards />
-
-      {classified.data && classified.data.length > 0 ? (
+      {filter ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Classificação Eisenhower
+              {filter === "completed"
+                ? "Cards concluídos"
+                : `Cards · ${FILTER_TITLE[filter]}`}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            {classified.data.slice(0, 12).map((t) => (
+            {tasks.isLoading ? <p className="text-sm">Carregando…</p> : null}
+            {tasks.error ? (
+              <p className="text-destructive text-sm">
+                {(tasks.error as Error).message}
+              </p>
+            ) : null}
+            {!(tasks.isLoading || tasks.error) && filteredTasks.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                {filter === "completed"
+                  ? "Cards concluídos ainda não são sincronizados do Trello nesta view."
+                  : "Nenhuma task neste filtro."}
+              </p>
+            ) : null}
+            {filteredTasks.map((t) => (
               <div
                 className="flex items-center justify-between gap-2 text-sm"
                 key={t.id}
               >
-                <span className="truncate">{t.name}</span>
+                <span>{t.name}</span>
                 <div className="flex gap-1">
+                  {t.overdue ? (
+                    <Badge variant="destructive">atrasada</Badge>
+                  ) : null}
                   {t.quadrant ? (
                     <Badge variant="secondary">{t.quadrant}</Badge>
                   ) : null}
-                  {t.label ? <Badge variant="outline">{t.label}</Badge> : null}
                 </div>
->>>>>>> fba5668 (feat(tasks): dual Kanban/Gantt boards on /tasks with Trello move API)
               </div>
             ))}
           </CardContent>
