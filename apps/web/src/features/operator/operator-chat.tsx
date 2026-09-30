@@ -23,13 +23,13 @@ import { ArrowUpIcon, Loader2 } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useState } from "react";
 import { Streamdown } from "streamdown";
 
-import { ENV } from "@/env";
+import { getApiUrl } from "@/lib/server-url";
 
 export function OperatorChat() {
   const [input, setInput] = useState("");
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
-      api: `${ENV.VITE_SERVER_URL}/ai`,
+      api: getApiUrl("/api/ai"),
       credentials: "include",
     }),
   });

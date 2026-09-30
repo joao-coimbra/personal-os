@@ -10,7 +10,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { ENV } from "@/env";
 import {
   desktopRuntimeAvailable,
   loadStoredWorkspaces,
@@ -42,7 +41,7 @@ function FilesPage() {
   const handlePdfUpload = async (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(`${ENV.VITE_SERVER_URL}/api/files/extract-pdf`, {
+    const res = await fetch(getApiUrl("/api/files/extract-pdf"), {
       body: form,
       credentials: "include",
       method: "POST",
