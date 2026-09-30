@@ -30,7 +30,7 @@ export async function trelloFetch<T>(
 }
 
 export async function listMemberBoards(token: string, apiKey: string) {
-  return trelloFetch<Array<{ id: string; name: string }>>(
+  return await trelloFetch<Array<{ id: string; name: string }>>(
     "/members/me/boards",
     token,
     apiKey,
@@ -67,9 +67,14 @@ export async function createCard(
   if (input.due) {
     params.set("due", input.due);
   }
-  return trelloFetch<TrelloCard>(`/cards?${params.toString()}`, token, apiKey, {
-    method: "POST",
-  });
+  return await trelloFetch<TrelloCard>(
+    `/cards?${params.toString()}`,
+    token,
+    apiKey,
+    {
+      method: "POST",
+    }
+  );
 }
 
 export async function updateCard(
@@ -100,7 +105,7 @@ export async function updateCard(
   if (input.idList) {
     params.set("idList", input.idList);
   }
-  return trelloFetch<TrelloCard>(
+  return await trelloFetch<TrelloCard>(
     `/cards/${cardId}?${params.toString()}`,
     token,
     apiKey,
@@ -108,4 +113,22 @@ export async function updateCard(
       method: "PUT",
     }
   );
+}
+
+/**
+ * Probes Trello with a dummy token. "invalid key" means the Power-Up API key
+ * is wrong/revoked; "invalid token" means the key itself is accepted.
+ */
+export async function validateTrelloApiKey(apiKey: string): Promise<void> {
+  const url = new URL("https://api.trello.com/1/members/me");
+  url.searchParams.set("key", apiKey);
+  url.searchParams.set("token", "personalos-key-check");
+  const response = await fetch(url);
+  const body = (await response.text()).trim().toLowerCase();
+
+  if (body.includes("invalid key")) {
+    throw new Error(
+      "Trello API key inválida (App not found). Crie um Power-Up em https://trello.com/power-ups/admin, gere a API Key e atualize TRELLO_API_KEY. Em Allowed origins inclua a URL do web (ex.: http://localhost:3001)."
+    );
+  }
 }

@@ -26,6 +26,19 @@ async function checkUnauthStart(provider: string): Promise<string> {
   return location;
 }
 
+async function checkTrelloApiKey(apiKey: string): Promise<void> {
+  const url = new URL("https://api.trello.com/1/members/me");
+  url.searchParams.set("key", apiKey);
+  url.searchParams.set("token", "personalos-key-check");
+  const response = await fetch(url);
+  const body = (await response.text()).trim().toLowerCase();
+  if (body.includes("invalid key")) {
+    throw new Error(
+      "Trello API key inválida (App not found). Crie um Power-Up em https://trello.com/power-ups/admin, gere a API Key e atualize TRELLO_API_KEY. Em Allowed origins inclua a URL do web (ex.: http://localhost:3001)."
+    );
+  }
+}
+
 async function main() {
   const results: string[] = [];
 
@@ -60,6 +73,19 @@ async function main() {
       throw new Error(`missing env ${key}`);
     }
     results.push(`ok  env ${key} present`);
+  }
+
+  const trelloKey = process.env.TRELLO_API_KEY;
+  if (trelloKey) {
+    try {
+      await checkTrelloApiKey(trelloKey);
+      results.push("ok  TRELLO_API_KEY accepted by Trello");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      results.push(`FAIL Trello key: ${message}`);
+      console.log(results.join("\n"));
+      throw error;
+    }
   }
 
   console.log(results.join("\n"));

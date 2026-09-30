@@ -7,6 +7,7 @@ import {
   type OAuthProvider,
   type OAuthStatePayload,
   saveIntegrationToken,
+  validateTrelloApiKey,
 } from "@personal-os/integrations";
 import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -122,6 +123,13 @@ async function handleOAuthStart(request: FastifyRequest, reply: FastifyReply) {
   );
 
   try {
+    if (provider === "trello") {
+      const key = oauthEnv().trelloApiKey;
+      if (!key) {
+        throw new Error("TRELLO_API_KEY is not configured.");
+      }
+      await validateTrelloApiKey(key);
+    }
     const url = buildAuthorizeUrl(provider, oauthEnv(), state, returnTo);
     return reply.redirect(url);
   } catch (error) {
