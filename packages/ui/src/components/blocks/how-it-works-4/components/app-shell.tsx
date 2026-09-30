@@ -190,28 +190,16 @@ function Sidebar({ activeNavId }: { activeNavId: string }) {
 export function AppShell({
   activeNavId,
   children,
-  compact = false,
 }: {
   activeNavId: string;
   children: ReactNode;
-  /** Fit the full 1400×1060 shell inside a short embedded viewport. */
-  compact?: boolean;
 }) {
   return (
     <div
-      // Full showcase: taller than the frame on purpose so it crops at the
-      // bottom. Compact: scale against both axes so the whole shell (sidebar +
-      // KPIs + right panels) stays visible instead of clipping mid-canvas.
-      // Keep transform; `zoom` is not portable enough to swap in.
-      className={cn(
-        "absolute h-[1060px] w-[1400px] origin-top-left",
-        compact ? "top-[3cqh] left-[2cqw]" : "top-[6.25cqw] left-[6.25cqw]"
-      )}
-      style={{
-        transform: compact
-          ? "scale(min(calc(96cqw / 1400px), calc(94cqh / 1060px)))"
-          : "scale(calc(100cqw / 1600px))",
-      }}
+      // Taller than the visible frame on purpose: it crops the console at the
+      // bottom. Keep the transform; `zoom` is not portable enough to swap in.
+      className="absolute top-[6.25cqw] left-[6.25cqw] h-[1060px] w-[1400px] origin-top-left"
+      style={{ transform: "scale(calc(100cqw / 1600px))" }}
     >
       <Card
         className={cn(
