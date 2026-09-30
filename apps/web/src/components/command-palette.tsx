@@ -1,3 +1,4 @@
+// biome-ignore-all lint/performance/noJsxPropsBind: command item onSelect handlers
 import {
   CommandDialog,
   CommandEmpty,
@@ -73,7 +74,7 @@ export function CommandPalette() {
           <CommandItem
             onSelect={() => {
               setOpen(false);
-              navigate({ to: "/home" });
+              navigate({ to: "/" });
             }}
           >
             Home
