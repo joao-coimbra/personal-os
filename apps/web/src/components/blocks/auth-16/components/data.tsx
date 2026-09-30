@@ -11,8 +11,8 @@ export interface AuthProvider {
 }
 
 export interface AuthCapability {
-  id: string;
   icon: ReactNode;
+  id: string;
   name: string;
 }
 
