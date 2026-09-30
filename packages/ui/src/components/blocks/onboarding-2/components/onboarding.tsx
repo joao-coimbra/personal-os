@@ -1,5 +1,6 @@
 "use client";
 
+import { HowItWorks } from "@personal-os/ui/components/blocks/how-it-works-4/components/how-it-works";
 import { Button } from "@personal-os/ui/components/button";
 import { Checkbox } from "@personal-os/ui/components/checkbox";
 import {
@@ -27,13 +28,7 @@ import { Frame, FramePanel } from "@personal-os/ui/components/reui/frame";
 import { IconStack } from "@personal-os/ui/components/reui/icon-stack";
 import { Spinner } from "@personal-os/ui/components/spinner";
 import { cn } from "cn";
-import {
-  CalendarDays,
-  CircleCheckIcon,
-  Kanban,
-  NotebookPen,
-  RocketIcon,
-} from "lucide-react";
+import { CircleCheckIcon, RocketIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   type CSSProperties,
@@ -132,30 +127,9 @@ function WelcomeStep({
   description: string;
   title: string;
 }) {
-  const highlights = [
-    {
-      detail: "Boards e prioridades Eisenhower",
-      icon: Kanban,
-      label: "Tarefas",
-      tone: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
-    },
-    {
-      detail: "Agenda com blocos de foco",
-      icon: CalendarDays,
-      label: "Agenda",
-      tone: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
-    },
-    {
-      detail: "Base de conhecimento para o operador",
-      icon: NotebookPen,
-      label: "Notas",
-      tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    },
-  ] as const;
-
   return (
-    <div aria-live="polite" className="flex flex-col gap-7">
-      <div className="flex max-w-md flex-col gap-2">
+    <div aria-live="polite" className="flex flex-col gap-6">
+      <div className="flex max-w-2xl flex-col gap-2">
         <h1 className="text-balance font-semibold text-foreground text-xl leading-7 sm:text-[1.375rem]">
           {title}
         </h1>
@@ -164,35 +138,7 @@ function WelcomeStep({
         </p>
       </div>
 
-      <ul className="flex flex-col gap-3">
-        {highlights.map((item) => {
-          const Icon = item.icon;
-          return (
-            <li className="flex items-start gap-3" key={item.label}>
-              <span
-                className={cn(
-                  "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl",
-                  item.tone
-                )}
-              >
-                <Icon aria-hidden="true" className="size-4" />
-              </span>
-              <span className="min-w-0 pt-0.5">
-                <span className="block font-medium text-foreground text-sm leading-5">
-                  {item.label}
-                </span>
-                <span className="mt-0.5 block text-muted-foreground text-sm leading-5">
-                  {item.detail}
-                </span>
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-
-      <p className="text-muted-foreground text-xs leading-5">
-        Sem colar tokens — só autorização oficial, no seu ritmo.
-      </p>
+      <HowItWorks embedded />
     </div>
   );
 }
@@ -637,7 +583,12 @@ export function Onboarding({
                   </motion.div>
                 ) : (
                   <motion.form
-                    className="mx-auto flex w-full max-w-md flex-col lg:min-h-[36rem]"
+                    className={cn(
+                      "mx-auto flex w-full flex-col lg:min-h-[36rem]",
+                      currentStepMeta.id === "welcome"
+                        ? "max-w-4xl"
+                        : "max-w-md"
+                    )}
                     key={currentStepMeta.id}
                     onSubmit={handleSubmit}
                     {...motionProps}

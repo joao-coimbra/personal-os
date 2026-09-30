@@ -34,7 +34,7 @@ export type FocusGoalValue =
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     description:
-      "Em poucos minutos você conecta o essencial e o operador passa a priorizar e planejar com você.",
+      "Um tour rápido: painel, módulos, operador e integrações — em seguida você conecta o essencial.",
     id: "welcome",
     label: "Bem-vindo",
     title: "Seu sistema operacional pessoal",
