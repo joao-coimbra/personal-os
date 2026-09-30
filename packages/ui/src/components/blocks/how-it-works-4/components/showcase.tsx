@@ -155,7 +155,7 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
                 className="absolute inset-x-[5cqw] top-[5cqw] -bottom-[4cqw] rounded-[calc(var(--radius)*1.5)] bg-white/10 ring-1 ring-white/25 ring-inset"
               />
               <div className="absolute inset-0">
-                <AppShell activeNavId={active.navId}>
+                <AppShell activeNavId={active.navId} compact={compact}>
                   {STEPS.filter((item) => item.value === value).map((item) => {
                     const View = WORKSPACES[item.value];
                     if (!View) {
