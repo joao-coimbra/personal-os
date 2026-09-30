@@ -18,6 +18,9 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   server: {
+    host: true,
     port: 3001,
+    strictPort: true,
+    allowedHosts: true,
   },
 });

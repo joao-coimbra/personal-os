@@ -148,7 +148,7 @@ fastify.post("/api/ai", async (request, reply) => {
 
 fastify.get("/", async () => "OK");
 
-fastify.listen({ port: 3000 }, (err) => {
+fastify.listen({ host: "0.0.0.0", port: 3000 }, (err) => {
   if (err) {
     fastify.log.error(err);
     process.exit(1);
