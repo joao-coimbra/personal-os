@@ -75,7 +75,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 export const SIDEBAR_STEP_DESCRIPTIONS: Record<string, string> = {
   ai: "Como pedir ajuda à IA.",
   goals: "Prioridades iniciais.",
-  integrations: "Trello, Calendar e Notion.",
+  integrations: "Trello, Calendar, Gmail e Notion.",
   preferences: "Timezone e blocos de foco.",
   welcome: "Visão geral do PersonalOS.",
 };
