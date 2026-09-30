@@ -511,9 +511,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           orientation="horizontal"
         >
           <ResizablePanel
-            defaultSize={operatorOpen ? 70 : 100}
+            defaultSize={operatorOpen ? "70" : "100"}
             id="main"
-            minSize={42}
+            minSize={operatorOpen ? "42" : "100"}
           >
             <SidebarInset className="m-2 flex h-[calc(100%-1rem)] min-h-0 flex-col overflow-hidden rounded-lg border bg-background shadow-xs md:ml-0">
               <ShellHeader
@@ -531,10 +531,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             <>
               <ResizableHandle withHandle />
               <ResizablePanel
-                defaultSize={30}
+                defaultSize="30"
                 id="operator"
-                maxSize={48}
-                minSize={22}
+                maxSize="48"
+                minSize="22"
               >
                 <aside
                   aria-label="Assistente AI"
