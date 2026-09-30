@@ -57,10 +57,6 @@ import UserMenu from "./user-menu";
 
 const LG_BREAKPOINT = 1024;
 
-function closeOperatorPanel() {
-  useUiStore.getState().setOperatorOpen(false);
-}
-
 const mainNav = [
   { icon: Home, label: "Home", to: "/home" },
   { icon: ListTodo, label: "Tasks", to: "/tasks" },
@@ -107,6 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const operatorOpen = useUiStore((s) => s.operatorOpen);
   const setOperatorOpen = useUiStore((s) => s.setOperatorOpen);
+  const closeOperator = useUiStore((s) => s.closeOperator);
   const toggleOperator = useUiStore((s) => s.toggleOperator);
   const belowLg = useIsBelowLg();
   const overview = useQuery(orpc.dashboard.getOverview.queryOptions());
@@ -419,7 +416,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
               <Button
                 aria-label="Fechar assistente"
-                onClick={closeOperatorPanel}
+                onClick={closeOperator}
                 size="icon-sm"
                 type="button"
                 variant="ghost"

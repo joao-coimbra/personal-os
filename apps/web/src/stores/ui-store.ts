@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 interface UiStore {
+  closeOperator: () => void;
   commandPaletteOpen: boolean;
   operatorOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
@@ -9,6 +10,7 @@ interface UiStore {
 }
 
 export const useUiStore = create<UiStore>((set) => ({
+  closeOperator: () => set({ operatorOpen: false }),
   commandPaletteOpen: false,
   operatorOpen: false,
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
