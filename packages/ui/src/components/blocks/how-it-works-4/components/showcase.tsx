@@ -139,7 +139,9 @@ export function Showcase({ compact = false }: { compact?: boolean }) {
           <div
             className={cn(
               "relative overflow-clip",
-              compact ? "aspect-[16/9] max-h-60" : "aspect-[20/9]"
+              // Compact welcome: drop max-h-60 (~15rem); use a tall fixed
+              // viewport so more of the AppShell mock is visible before crop.
+              compact ? "h-80 sm:h-96 lg:h-[28rem]" : "aspect-[20/9]"
             )}
           >
             <div
