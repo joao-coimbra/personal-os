@@ -25,7 +25,7 @@ export const Route = createFileRoute("/onboarding")({
     }
     const prefs = await client.preferences.get();
     if (prefs?.onboardingCompletedAt) {
-      throw redirect({ to: "/home" });
+      throw redirect({ to: "/" });
     }
   },
   component: OnboardingPage,
@@ -130,7 +130,7 @@ function OnboardingPage() {
     mutationFn: () => client.preferences.completeOnboarding(),
     onSuccess: async () => {
       await queryClient.invalidateQueries();
-      navigate({ to: "/home" });
+      navigate({ to: "/" });
     },
   });
 

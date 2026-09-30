@@ -5,15 +5,20 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, ListTodo, Sparkles } from "lucide-react";
 
+import { AuthSplash } from "@/components/blocks/auth-16/components/auth-splash";
 import { useUiStore } from "@/stores/ui-store";
 import { orpc } from "@/utils/orpc";
 
-export const Route = createFileRoute("/_app/home")({
+export const Route = createFileRoute("/_app/")({
   component: HomePage,
+  pendingComponent: AuthSplash,
 });
 
+function openOperator() {
+  useUiStore.getState().setOperatorOpen(true);
+}
+
 function HomePage() {
-  const setOperatorOpen = useUiStore((s) => s.setOperatorOpen);
   const overview = useQuery(orpc.dashboard.getOverview.queryOptions());
 
   if (overview.isLoading) {
@@ -25,10 +30,14 @@ function HomePage() {
     );
   }
 
-  const data = overview.data;
+  const { data } = overview;
   const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  let greeting = "Boa noite";
+  if (hour < 12) {
+    greeting = "Bom dia";
+  } else if (hour < 18) {
+    greeting = "Boa tarde";
+  }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
@@ -46,7 +55,7 @@ function HomePage() {
               priorizar ou planejar o dia.
             </p>
           </div>
-          <Button onClick={() => setOperatorOpen(true)} size="lg" type="button">
+          <Button onClick={openOperator} size="lg" type="button">
             <Sparkles className="size-4" />
             Abrir operador
           </Button>

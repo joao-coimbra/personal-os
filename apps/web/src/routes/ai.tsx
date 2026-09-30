@@ -4,7 +4,7 @@ import { useUiStore } from "@/stores/ui-store";
 
 export const Route = createFileRoute("/ai")({
   beforeLoad: () => {
-    throw redirect({ to: "/home" });
+    throw redirect({ to: "/" });
   },
   component: AiRedirect,
 });

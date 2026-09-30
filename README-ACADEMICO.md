@@ -38,7 +38,7 @@ Local (`BETTER_AUTH_URL=http://localhost:3000`, web `:3001`):
 
 1. **Cadastro/login** (email e senha).
 2. **Onboarding**: conectar Trello e Calendar (token ou pular), definir timezone e horário de trabalho, conhecer o operador de IA.
-3. **Dashboard (`/home`)**: visão agregada via oRPC.
+3. **Dashboard (`/`)**: visão agregada via oRPC.
 4. **Tarefas (`/tasks`)**: lista com sugestão Eisenhower.
 5. **Calendário (`/calendar`)**: eventos do Google Calendar.
 6. **Operador de IA** (Cmd/Ctrl+K ou painel lateral): exemplos:

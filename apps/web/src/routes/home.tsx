@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_auth/dashboard")({
+/** Backwards-compatible redirect — app home lives at `/`. */
+export const Route = createFileRoute("/home")({
   beforeLoad: () => {
     throw redirect({ to: "/" });
   },

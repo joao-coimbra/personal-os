@@ -58,7 +58,7 @@ import UserMenu from "./user-menu";
 const LG_BREAKPOINT = 1024;
 
 const mainNav = [
-  { icon: Home, label: "Home", to: "/home" },
+  { icon: Home, label: "Home", to: "/" },
   { icon: ListTodo, label: "Tasks", to: "/tasks" },
   { icon: Calendar, label: "Calendar", to: "/calendar" },
   { icon: FileText, label: "Notes", to: "/notes" },
@@ -174,7 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     >
       <Sidebar collapsible="icon" variant="floating">
         <SidebarHeader className="flex h-(--header-height) flex-row items-center px-2.5">
-          <Link className="flex items-center gap-2 overflow-hidden" to="/home">
+          <Link className="flex items-center gap-2 overflow-hidden" to="/">
             <PersonalOsLogo markClassName="size-6" />
             <span className="truncate font-medium text-sm group-data-[collapsible=icon]:hidden">
               PersonalOS
