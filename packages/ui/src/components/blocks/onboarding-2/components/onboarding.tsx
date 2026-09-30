@@ -133,7 +133,7 @@ function WelcomeStep({
     <div aria-live="polite" className="flex flex-col gap-5">
       <StepHeading description={description} title={title} />
       {/* Bleed past STEP_COLUMN toward FramePanel edges; title/button stay max-w-xl. */}
-      <div className="-mx-3 sm:-mx-6 lg:-mx-8 xl:-mx-10">
+      <div className="-mx-3 sm:-mx-6 lg:-mx-10 xl:-mx-16">
         <HowItWorks embedded />
       </div>
     </div>
