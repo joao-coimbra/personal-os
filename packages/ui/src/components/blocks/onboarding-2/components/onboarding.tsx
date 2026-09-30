@@ -137,7 +137,7 @@ function WelcomeStep({
         content edges. Title + Começar stay on STEP_COLUMN; only the card
         expands. 100cqi resolves against FramePanel's @container/frame.
       */}
-      <div className="relative left-1/2 w-[min(72rem,100cqi)] max-w-none -translate-x-1/2">
+      <div className="relative left-1/2 w-[min(72rem,100cqi,calc(100vw-22rem))] max-w-none -translate-x-1/2 max-lg:w-[min(72rem,calc(100vw-1.5rem))]">
         <HowItWorks embedded />
       </div>
     </div>
