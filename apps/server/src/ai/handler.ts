@@ -1,12 +1,17 @@
 import { devToolsMiddleware } from "@ai-sdk/devtools";
 import {
   buildOperatorTools,
+  listCalendarEvents,
+  listTasks,
   OPERATOR_SYSTEM_PROMPT,
+  proposeDayPlan,
+  softToolResult,
 } from "@personal-os/capabilities";
 import type { Database } from "@personal-os/db";
 import { userPreference } from "@personal-os/db/schema/app";
 import {
   convertToModelMessages,
+  generateText,
   stepCountIs,
   streamText,
   type UIMessage,
@@ -53,7 +58,7 @@ const RAW_JSON_ERROR_RE = /"error"\s*:/;
  * Only commit (disable failover) once the model emits user-visible text /
  * reasoning or the overall stream finishes. Tool-call / tool-result /
  * finish-step must NOT commit — Gemini often 503/429 on the *next* step after
- * tools, and we still need to failover before the HTTP response starts.
+ * tools, and we still need to failover / recover before aborting.
  */
 const COMMIT_PART_TYPES = new Set([
   "text-start",
@@ -74,6 +79,36 @@ interface UserPrefs {
   timezone?: string | null;
   workEnd?: string | null;
   workStart?: string | null;
+}
+
+interface CapturedToolResult {
+  output: unknown;
+  toolName: string;
+}
+
+interface StreamPart {
+  error?: unknown;
+  finishReason?: string;
+  id?: string;
+  output?: unknown;
+  result?: unknown;
+  text?: string;
+  toolName?: string;
+  type?: string;
+}
+
+interface RecoveryContext {
+  candidates: ResolvedOperatorModel[];
+  messages: Awaited<ReturnType<typeof convertToModelMessages>>;
+  prefs: UserPrefs | undefined;
+  skipLabel: string;
+  toolResults: CapturedToolResult[];
+}
+
+type StreamIterator = AsyncIterator<StreamPart>;
+
+interface ProviderStreamResult {
+  fullStream: AsyncIterable<StreamPart>;
 }
 
 export function isProviderFailoverError(error: unknown): boolean {
@@ -146,7 +181,6 @@ export function formatOperatorError(error: unknown): string {
   if (MODEL_UNAVAILABLE_PATTERN.test(message)) {
     return "Modelo de IA indisponível no momento. Tente de novo ou reconecte em Integrações.";
   }
-  // Never surface raw JSON / API dumps in the UI toast.
   if (
     message.trim().startsWith("{") ||
     message.trim().startsWith("[") ||
@@ -171,20 +205,6 @@ function errorCodeFor(error: unknown): string {
   return "provider_error";
 }
 
-interface ProviderStreamResult {
-  fullStream: AsyncIterable<unknown>;
-}
-
-interface StreamPart {
-  error?: unknown;
-  finishReason?: string;
-  id?: string;
-  text?: string;
-  type?: string;
-}
-
-type StreamIterator = AsyncIterator<unknown>;
-
 function toError(value: unknown, fallback: string): Error {
   return value instanceof Error ? value : new Error(String(value ?? fallback));
 }
@@ -203,30 +223,38 @@ User preferences:
 - focus block: ${prefs?.focusMinutes ?? 50} min, break: ${prefs?.breakMinutes ?? 15} min`;
 }
 
-function enqueueStreamError(
-  controller: ReadableStreamDefaultController,
-  error: unknown
+function captureToolResult(
+  part: StreamPart,
+  captured: CapturedToolResult[]
 ): void {
-  try {
-    controller.enqueue({
-      error: formatOperatorError(error),
-      type: "error",
-    });
-    controller.close();
-  } catch {
-    controller.error(toError(error, "provider stream error"));
+  if (part.type !== "tool-result" || !part.toolName) {
+    return;
   }
+  captured.push({
+    output: part.output ?? part.result ?? null,
+    toolName: part.toolName,
+  });
 }
 
 function assistantTextParts(text: string): StreamPart[] {
-  const id = `pitch-demo-${Date.now().toString(36)}`;
+  const id = `recovery-${Date.now().toString(36)}`;
   return [
     { id, type: "text-start" },
     { id, text, type: "text-delta" },
     { id, type: "text-end" },
     { type: "finish-step" },
-    { finishReason: "stop", type: "finish" } as StreamPart,
+    { finishReason: "stop", type: "finish" },
   ];
+}
+
+function closeWithAssistantText(
+  controller: ReadableStreamDefaultController,
+  text: string
+): void {
+  for (const part of assistantTextParts(text)) {
+    controller.enqueue(part);
+  }
+  controller.close();
 }
 
 function streamFromAssistantText(text: string): ReadableStream {
@@ -276,55 +304,366 @@ function pitchDemoStream(): {
   };
 }
 
-async function collectProbeBuffer(
-  iterator: StreamIterator,
-  buffer: StreamPart[] = []
-): Promise<StreamPart[]> {
-  const next = await iterator.next();
-  if (next.done) {
-    return buffer;
+function formatToolOutputPreview(output: unknown): string {
+  try {
+    return JSON.stringify(output, null, 2).slice(0, 4000);
+  } catch {
+    return String(output);
   }
-  const part = next.value as StreamPart;
-  buffer.push(part);
-  if (part.type === "error") {
-    throw toError(part.error, "provider stream error");
+}
+
+function isSoftToolFailure(
+  output: unknown
+): output is { error?: string; ok: false } {
+  return (
+    !!output &&
+    typeof output === "object" &&
+    "ok" in output &&
+    (output as { ok?: boolean }).ok === false
+  );
+}
+
+function calendarEventsFromOutput(output: unknown): unknown[] | null {
+  if (Array.isArray(output)) {
+    return output;
   }
-  if (part.type && COMMIT_PART_TYPES.has(part.type)) {
-    return buffer;
+  if (output && typeof output === "object" && "events" in output) {
+    const { events } = output as { events?: unknown };
+    if (Array.isArray(events)) {
+      return events;
+    }
   }
-  return collectProbeBuffer(iterator, buffer);
+  return null;
+}
+
+function formatCalendarSection(output: unknown): string {
+  const events = calendarEventsFromOutput(output);
+  if (!(events && events.length > 0)) {
+    return "### Próximos eventos\nNenhum evento encontrado na janela consultada.";
+  }
+  const lines = events.slice(0, 8).map((event) => {
+    const item = event as {
+      end?: { date?: string; dateTime?: string };
+      start?: { date?: string; dateTime?: string };
+      summary?: string;
+    };
+    const { end: endObj, start: startObj, summary } = item;
+    const start = startObj?.dateTime ?? startObj?.date ?? "?";
+    const end = endObj?.dateTime ?? endObj?.date ?? "?";
+    return `- **${summary ?? "Evento"}** — ${start} → ${end}`;
+  });
+  return `### Próximos eventos\n${lines.join("\n")}`;
+}
+
+function formatPlanSections(output: unknown): string[] {
+  const plan = output as {
+    blocks?: Array<{ end?: string; start?: string; summary?: string }>;
+    calendarWarning?: string;
+  } | null;
+  const sections: string[] = [];
+  if (plan?.calendarWarning) {
+    sections.push(`> ${plan.calendarWarning}`);
+  }
+  if (plan?.blocks && plan.blocks.length > 0) {
+    const lines = plan.blocks.map(
+      (block) =>
+        `- **${block.summary ?? "Foco"}** — ${block.start ?? "?"} → ${block.end ?? "?"}`
+    );
+    sections.push(`### Blocos de foco sugeridos\n${lines.join("\n")}`);
+  }
+  return sections;
+}
+
+function formatTasksSection(output: unknown): string | null {
+  if (!Array.isArray(output) || output.length === 0) {
+    return null;
+  }
+  const lines = output.slice(0, 8).map((task) => {
+    const { name, quadrant } = task as { name?: string; quadrant?: string };
+    return `- ${name ?? "Tarefa"}${quadrant ? ` (${quadrant})` : ""}`;
+  });
+  return `### Tarefas em aberto\n${lines.join("\n")}`;
+}
+
+function formatToolSection(tool: CapturedToolResult): string[] {
+  const { output, toolName } = tool;
+  if (isSoftToolFailure(output)) {
+    return [`### ${toolName}\n> ${output.error ?? "indisponível"}`];
+  }
+  if (toolName === "calendar_list_events") {
+    return [formatCalendarSection(output)];
+  }
+  if (toolName === "planning_propose_day") {
+    return formatPlanSections(output);
+  }
+  if (toolName === "tasks_list") {
+    const section = formatTasksSection(output);
+    return section ? [section] : [];
+  }
+  return [
+    `### ${toolName}\n\`\`\`json\n${formatToolOutputPreview(output)}\n\`\`\``,
+  ];
+}
+
+function buildLocalRecoveryText(
+  toolResults: CapturedToolResult[],
+  error: unknown
+): string {
+  const providerNote = formatOperatorError(error);
+  const sections = [
+    "O modelo ficou indisponível no meio da resposta, mas já consultei seus dados conectados. Segue o que consegui montar:",
+  ];
+
+  for (const tool of toolResults) {
+    sections.push(...formatToolSection(tool));
+  }
+
+  if (toolResults.length === 0) {
+    sections.push(
+      "Não houve resultados de ferramentas para montar um resumo local. Tente de novo em instantes."
+    );
+  } else {
+    sections.push(
+      "### Sugestão\nConfirme se quer que eu **grave** esses blocos no Google Calendar (só crio eventos após confirmação explícita)."
+    );
+  }
+
+  sections.push(`\n_Nota técnica: ${providerNote}_`);
+  return sections.join("\n\n");
+}
+
+async function recoverWithAlternateModel(input: {
+  candidates: ResolvedOperatorModel[];
+  messages: Awaited<ReturnType<typeof convertToModelMessages>>;
+  prefs: UserPrefs | undefined;
+  skipLabel: string;
+  toolResults: CapturedToolResult[];
+}): Promise<string | null> {
+  const toolContext = input.toolResults
+    .map(
+      (tool) =>
+        `Tool ${tool.toolName} result:\n${formatToolOutputPreview(tool.output)}`
+    )
+    .join("\n\n");
+
+  const candidates = input.candidates.filter(
+    (candidate) => candidate.label !== input.skipLabel
+  );
+
+  for (const candidate of candidates) {
+    try {
+      const model = wrapLanguageModel({
+        middleware: devToolsMiddleware(),
+        model: candidate.model,
+      });
+      // biome-ignore lint/performance/noAwaitInLoops: failover must be sequential
+      const result = await generateText({
+        maxRetries: 1,
+        messages: [
+          ...input.messages,
+          {
+            content: `Os dados abaixo já foram obtidos via ferramentas. Complete o pedido do usuário em pt-BR com resumo dos eventos e sugestão de blocos de foco. Não invente dados e não chame ferramentas.\n\n${toolContext}`,
+            role: "user",
+          },
+        ],
+        model,
+        system: `${buildSystemPrompt(candidate, input.prefs)}\n\nYou are finishing a reply after a previous model step failed. Use only the provided tool results.`,
+      });
+      if (result.text.trim()) {
+        return result.text.trim();
+      }
+    } catch {
+      // Try next candidate.
+    }
+  }
+  return null;
+}
+
+async function resolveRecoveryText(input: {
+  candidates: ResolvedOperatorModel[];
+  error: unknown;
+  messages: Awaited<ReturnType<typeof convertToModelMessages>>;
+  prefs: UserPrefs | undefined;
+  skipLabel: string;
+  toolResults: CapturedToolResult[];
+}): Promise<string> {
+  if (input.toolResults.length > 0) {
+    const recovered = await recoverWithAlternateModel({
+      candidates: input.candidates,
+      messages: input.messages,
+      prefs: input.prefs,
+      skipLabel: input.skipLabel,
+      toolResults: input.toolResults,
+    });
+    if (recovered) {
+      return recovered;
+    }
+  }
+  return buildLocalRecoveryText(input.toolResults, input.error);
+}
+
+function todayInTimezone(timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: timezone,
+      year: "numeric",
+    }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+async function gatherCapabilityToolResults(
+  config: AiHandlerConfig,
+  prefs: UserPrefs | undefined
+): Promise<CapturedToolResult[]> {
+  const env = {
+    db: config.db,
+    encryptionKey: config.encryptionKey,
+    trelloApiKey: config.trelloApiKey,
+    userId: config.userId,
+  };
+  const timezone = prefs?.timezone ?? "America/Sao_Paulo";
+  const targetDate = todayInTimezone(timezone);
+  const timeMin = `${targetDate}T00:00:00Z`;
+  const timeMax = `${targetDate}T23:59:59Z`;
+
+  const [calendar, tasks, plan] = await Promise.all([
+    softToolResult(() => listCalendarEvents(env, { timeMax, timeMin })),
+    softToolResult(() => listTasks(env)),
+    softToolResult(() =>
+      proposeDayPlan(env, {
+        preferences: {
+          breakMinutes: prefs?.breakMinutes ?? 15,
+          focusMinutes: prefs?.focusMinutes ?? 50,
+          timezone,
+          workEnd: prefs?.workEnd ?? "18:00",
+          workStart: prefs?.workStart ?? "09:00",
+        },
+        targetDate,
+      })
+    ),
+  ]);
+
+  return [
+    { output: calendar, toolName: "calendar_list_events" },
+    { output: tasks, toolName: "tasks_list" },
+    { output: plan, toolName: "planning_propose_day" },
+  ];
+}
+
+async function capabilityOnlyRecovery(input: {
+  config: AiHandlerConfig;
+  lastError: unknown;
+  prefs: UserPrefs | undefined;
+}): Promise<{
+  label: string;
+  provider: ResolvedOperatorModel["provider"];
+  stream: ReadableStream;
+}> {
+  const toolResults = await gatherCapabilityToolResults(
+    input.config,
+    input.prefs
+  );
+  const text = buildLocalRecoveryText(toolResults, input.lastError);
+  return {
+    label: "Local capability recovery",
+    provider: "google",
+    stream: streamFromAssistantText(text),
+  };
 }
 
 async function pumpRemaining(
   iterator: StreamIterator,
-  controller: ReadableStreamDefaultController
+  controller: ReadableStreamDefaultController,
+  context: RecoveryContext
 ): Promise<void> {
-  const next = await iterator.next();
-  if (next.done) {
-    controller.close();
-    return;
+  for (;;) {
+    // biome-ignore lint/performance/noAwaitInLoops: stream pump is inherently sequential
+    const next = await iterator.next();
+    if (next.done) {
+      controller.close();
+      return;
+    }
+    const part = next.value;
+    if (part.type === "error") {
+      const text = await resolveRecoveryText({
+        candidates: context.candidates,
+        error: part.error,
+        messages: context.messages,
+        prefs: context.prefs,
+        skipLabel: context.skipLabel,
+        toolResults: context.toolResults,
+      });
+      closeWithAssistantText(controller, text);
+      return;
+    }
+    captureToolResult(part, context.toolResults);
+    controller.enqueue(part);
   }
-  const part = next.value as StreamPart;
-  if (part.type === "error") {
-    // Never controller.error() here — that aborts HTTP after headers and the
-    // client surfaces a raw "network error" / connection-failure card.
-    enqueueStreamError(controller, part.error);
-    return;
-  }
-  controller.enqueue(part);
-  await pumpRemaining(iterator, controller);
 }
 
 /**
- * Start streamText and wait until the provider emits user-visible output
- * (or fails). Tool rounds are buffered so mid-tool-loop 503/429 can still
- * failover before the HTTP response starts.
+ * Probe until user-visible text (or failure). Tool rounds stay buffered so
+ * mid-tool-loop 429/503 can failover or recover with tool results in-band.
  */
-async function openProviderStream(
-  result: ProviderStreamResult
-): Promise<ReadableStream> {
-  const iterator = result.fullStream[Symbol.asyncIterator]();
-  const buffer = await collectProbeBuffer(iterator);
+async function openProviderStreamOrRecover(input: {
+  candidates: ResolvedOperatorModel[];
+  messages: Awaited<ReturnType<typeof convertToModelMessages>>;
+  prefs: UserPrefs | undefined;
+  resolved: ResolvedOperatorModel;
+  result: ProviderStreamResult;
+}): Promise<ReadableStream> {
+  const iterator = input.result.fullStream[
+    Symbol.asyncIterator
+  ]() as StreamIterator;
+  const buffer: StreamPart[] = [];
+  const toolResults: CapturedToolResult[] = [];
+
+  try {
+    for (;;) {
+      // biome-ignore lint/performance/noAwaitInLoops: probe must read stream sequentially
+      const next = await iterator.next();
+      if (next.done) {
+        break;
+      }
+      const part = next.value;
+      buffer.push(part);
+      captureToolResult(part, toolResults);
+      if (part.type === "error") {
+        throw toError(part.error, "provider stream error");
+      }
+      if (part.type && COMMIT_PART_TYPES.has(part.type)) {
+        break;
+      }
+    }
+  } catch (error) {
+    if (toolResults.length === 0 && isProviderFailoverError(error)) {
+      throw error;
+    }
+    const text = await resolveRecoveryText({
+      candidates: input.candidates,
+      error,
+      messages: input.messages,
+      prefs: input.prefs,
+      skipLabel: input.resolved.label,
+      toolResults,
+    });
+    const recoveryParts = [
+      ...buffer.filter((part) => part.type !== "error"),
+      ...assistantTextParts(text),
+    ];
+    return new ReadableStream({
+      start(controller) {
+        for (const part of recoveryParts) {
+          controller.enqueue(part);
+        }
+        controller.close();
+      },
+    });
+  }
 
   return new ReadableStream({
     cancel() {
@@ -338,15 +677,34 @@ async function openProviderStream(
         for (const part of buffer) {
           controller.enqueue(part);
         }
-        await pumpRemaining(iterator, controller);
+        await pumpRemaining(iterator, controller, {
+          candidates: input.candidates,
+          messages: input.messages,
+          prefs: input.prefs,
+          skipLabel: input.resolved.label,
+          toolResults,
+        });
       } catch (error) {
-        enqueueStreamError(controller, error);
+        const text = await resolveRecoveryText({
+          candidates: input.candidates,
+          error,
+          messages: input.messages,
+          prefs: input.prefs,
+          skipLabel: input.resolved.label,
+          toolResults,
+        });
+        try {
+          closeWithAssistantText(controller, text);
+        } catch {
+          // Controller may already be closed.
+        }
       }
     },
   });
 }
 
 async function tryProviderCandidate(input: {
+  candidates: ResolvedOperatorModel[];
   messages: Awaited<ReturnType<typeof convertToModelMessages>>;
   prefs: UserPrefs | undefined;
   resolved: ResolvedOperatorModel;
@@ -362,7 +720,6 @@ async function tryProviderCandidate(input: {
   });
 
   const result = streamText({
-    // Retry transient Gemini 503/high-demand before failing the candidate.
     maxRetries: 2,
     messages: input.messages,
     model,
@@ -371,12 +728,95 @@ async function tryProviderCandidate(input: {
     tools: input.tools,
   });
 
-  const stream = await openProviderStream(result);
+  const stream = await openProviderStreamOrRecover({
+    candidates: input.candidates,
+    messages: input.messages,
+    prefs: input.prefs,
+    resolved: input.resolved,
+    result,
+  });
+
   return {
     label: input.resolved.label,
     provider: input.resolved.provider,
     stream,
   };
+}
+
+async function recoverWhenCandidatesExhausted(input: {
+  config: AiHandlerConfig;
+  lastError: unknown;
+  prefs: UserPrefs | undefined;
+}): Promise<{
+  label: string;
+  provider: ResolvedOperatorModel["provider"];
+  stream: ReadableStream;
+}> {
+  try {
+    return await capabilityOnlyRecovery(input);
+  } catch (recoveryError) {
+    if (isOperatorPitchDemo()) {
+      return pitchDemoStream();
+    }
+    throw new Error(formatOperatorError(input.lastError ?? recoveryError), {
+      cause: recoveryError,
+    });
+  }
+}
+
+async function failoverOrRecover(input: {
+  candidates: ResolvedOperatorModel[];
+  config: AiHandlerConfig;
+  error: unknown;
+  index: number;
+  messages: Awaited<ReturnType<typeof convertToModelMessages>>;
+  prefs: UserPrefs | undefined;
+  resolved: ResolvedOperatorModel;
+  tools: ReturnType<typeof buildOperatorTools>;
+}): Promise<{
+  label: string;
+  provider: ResolvedOperatorModel["provider"];
+  stream: ReadableStream;
+}> {
+  const { error, resolved } = input;
+  const hasMore = input.index < input.candidates.length - 1;
+  const canFailover = isProviderFailoverError(error) && hasMore;
+
+  if (resolved.provider !== "google" && isProviderFailoverError(error)) {
+    await markProviderError(
+      input.config.db,
+      input.config.userId,
+      resolved.provider as AiModelProvider,
+      errorCodeFor(error)
+    );
+  }
+
+  if (canFailover) {
+    return runCandidates({
+      candidates: input.candidates,
+      config: input.config,
+      index: input.index + 1,
+      lastError: error,
+      messages: input.messages,
+      prefs: input.prefs,
+      tools: input.tools,
+    });
+  }
+
+  if (isProviderFailoverError(error)) {
+    try {
+      return await capabilityOnlyRecovery({
+        config: input.config,
+        lastError: error,
+        prefs: input.prefs,
+      });
+    } catch {
+      if (isOperatorPitchDemo()) {
+        return pitchDemoStream();
+      }
+    }
+  }
+  throw new Error(formatOperatorError(error), { cause: error });
 }
 
 async function runCandidates(input: {
@@ -394,45 +834,31 @@ async function runCandidates(input: {
 }> {
   const resolved = input.candidates[input.index];
   if (!resolved) {
-    if (isOperatorPitchDemo()) {
-      return pitchDemoStream();
-    }
-    throw new Error(formatOperatorError(input.lastError), {
-      cause: input.lastError,
+    return recoverWhenCandidatesExhausted({
+      config: input.config,
+      lastError: input.lastError,
+      prefs: input.prefs,
     });
   }
 
   try {
     return await tryProviderCandidate({
+      candidates: input.candidates,
       messages: input.messages,
       prefs: input.prefs,
       resolved,
       tools: input.tools,
     });
   } catch (error) {
-    const hasMore = input.index < input.candidates.length - 1;
-    const canFailover = isProviderFailoverError(error) && hasMore;
-
-    if (resolved.provider !== "google" && isProviderFailoverError(error)) {
-      await markProviderError(
-        input.config.db,
-        input.config.userId,
-        resolved.provider as AiModelProvider,
-        errorCodeFor(error)
-      );
-    }
-
-    if (!canFailover) {
-      if (isOperatorPitchDemo() && isProviderFailoverError(error)) {
-        return pitchDemoStream();
-      }
-      throw new Error(formatOperatorError(error), { cause: error });
-    }
-
-    return runCandidates({
-      ...input,
-      index: input.index + 1,
-      lastError: error,
+    return failoverOrRecover({
+      candidates: input.candidates,
+      config: input.config,
+      error,
+      index: input.index,
+      messages: input.messages,
+      prefs: input.prefs,
+      resolved,
+      tools: input.tools,
     });
   }
 }
