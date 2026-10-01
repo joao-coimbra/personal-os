@@ -117,6 +117,8 @@ upsert_env "${SERVER_ENV}" "DATABASE_URL" "${DEFAULT_DATABASE_URL}"
 upsert_env "${SERVER_ENV}" "BETTER_AUTH_URL" "${DEFAULT_AUTH_URL}"
 upsert_env "${SERVER_ENV}" "CORS_ORIGIN" "${DEFAULT_CORS}"
 upsert_env "${SERVER_ENV}" "GOOGLE_GENERATIVE_AI_API_KEY" "${GOOGLE_GENERATIVE_AI_API_KEY:-}"
+# Pitch video / cloud demo: free Gemini first + PT-BR fallback if all models 429.
+upsert_env "${SERVER_ENV}" "OPERATOR_PITCH_DEMO" "${OPERATOR_PITCH_DEMO:-1}"
 upsert_env "${SERVER_ENV}" "GOOGLE_CLIENT_ID" "${GOOGLE_CLIENT_ID:-}"
 upsert_env "${SERVER_ENV}" "GOOGLE_CLIENT_SECRET" "${GOOGLE_CLIENT_SECRET:-}"
 upsert_env "${SERVER_ENV}" "GITHUB_CLIENT_ID" "${GITHUB_CLIENT_ID:-}"
