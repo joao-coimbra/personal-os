@@ -6,17 +6,22 @@ const CAPABILITY_TOOL_NAMES = [
   "tasks_create",
   "tasks_classify",
   "calendar_list_events",
+  "calendar_create_event",
+  "calendar_update_event",
+  "calendar_delete_event",
   "planning_propose_day",
   "planning_create_focus_blocks",
   "knowledge_search",
   "knowledge_read_page",
   "knowledge_create_note",
+  "knowledge_append_content",
   "comm_rewrite_message",
   "comm_summarize_for_team",
   "comm_meeting_notes_to_tasks",
 ] as const;
 
 /** P2 foundation: MCP Streamable HTTP placeholder sharing capability registry later. */
+// biome-ignore lint/suspicious/useAwait: Fastify plugin signature is async
 export async function registerMcpRoutes(fastify: FastifyInstance) {
   fastify.get("/.well-known/oauth-protected-resource", async () => ({
     authorization_servers: [],
