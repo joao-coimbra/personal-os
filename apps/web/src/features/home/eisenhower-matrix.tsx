@@ -79,66 +79,59 @@ export function EisenhowerMatrix({
         </div>
       </div>
 
-      <div className="grid gap-2 md:grid-cols-[1.25rem_minmax(0,1fr)]">
-        <div aria-hidden="true" className="relative hidden md:block">
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap text-[10px] text-muted-foreground/50 uppercase tracking-[0.2em]">
-            Importante
-          </span>
-        </div>
-        <div className="min-w-0 space-y-2">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {QUADRANTS.map((quadrant) => {
-              const items = byQuadrant.get(quadrant.id) ?? [];
-              return (
-                <div
-                  className={cn(
-                    "flex min-h-40 flex-col rounded-2xl border p-4",
-                    quadrant.className
-                  )}
-                  key={quadrant.id}
-                >
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-sm">{quadrant.title}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {quadrant.axis}
-                      </p>
-                    </div>
-                    <Badge variant="secondary">{items.length}</Badge>
-                  </div>
-                  {items.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">
-                      {quadrant.empty}
+      <div className="space-y-2">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {QUADRANTS.map((quadrant) => {
+            const items = byQuadrant.get(quadrant.id) ?? [];
+            return (
+              <div
+                className={cn(
+                  "flex min-h-40 flex-col rounded-2xl border p-4",
+                  quadrant.className
+                )}
+                key={quadrant.id}
+              >
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-sm">{quadrant.title}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {quadrant.axis}
                     </p>
-                  ) : (
-                    <ul className="flex flex-1 flex-col gap-1.5">
-                      {items.slice(0, 6).map((task) => (
-                        <li
-                          className="rounded-lg border border-background/60 bg-background/70 px-2.5 py-1.5 text-sm backdrop-blur-sm"
-                          key={task.id}
-                          title={task.reason ?? undefined}
-                        >
-                          <span className="line-clamp-2">{task.name}</span>
-                        </li>
-                      ))}
-                      {items.length > 6 ? (
-                        <li className="text-muted-foreground text-xs">
-                          +{items.length - 6} outras
-                        </li>
-                      ) : null}
-                    </ul>
-                  )}
+                  </div>
+                  <Badge variant="secondary">{items.length}</Badge>
                 </div>
-              );
-            })}
-          </div>
-          <p
-            aria-hidden="true"
-            className="hidden text-center text-[10px] text-muted-foreground/50 uppercase tracking-[0.2em] md:block"
-          >
-            Urgente →
-          </p>
+                {items.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    {quadrant.empty}
+                  </p>
+                ) : (
+                  <ul className="flex flex-1 flex-col gap-1.5">
+                    {items.slice(0, 6).map((task) => (
+                      <li
+                        className="rounded-lg border border-background/60 bg-background/70 px-2.5 py-1.5 text-sm backdrop-blur-sm"
+                        key={task.id}
+                        title={task.reason ?? undefined}
+                      >
+                        <span className="line-clamp-2">{task.name}</span>
+                      </li>
+                    ))}
+                    {items.length > 6 ? (
+                      <li className="text-muted-foreground text-xs">
+                        +{items.length - 6} outras
+                      </li>
+                    ) : null}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
         </div>
+        <p
+          aria-hidden="true"
+          className="hidden text-center text-[10px] text-muted-foreground/50 uppercase tracking-[0.2em] md:block"
+        >
+          Urgente →
+        </p>
       </div>
     </section>
   );
