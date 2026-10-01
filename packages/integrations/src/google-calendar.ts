@@ -32,7 +32,17 @@ async function calendarFetch<T>(
     }
   );
   if (!response.ok) {
-    throw new Error(`Google Calendar API error: ${response.status}`);
+    let detail = "";
+    try {
+      const body = (await response.json()) as {
+        error?: { message?: string; status?: string };
+      };
+      detail = body.error?.message ?? body.error?.status ?? "";
+    } catch {
+      detail = "";
+    }
+    const suffix = detail ? ` — ${detail}` : "";
+    throw new Error(`Google Calendar API error: ${response.status}${suffix}`);
   }
   return response.json() as Promise<T>;
 }
@@ -66,7 +76,7 @@ export async function createEvent(
   }
 ) {
   const calendarId = encodeURIComponent(input.calendarId ?? "primary");
-  return calendarFetch<CalendarEvent>(
+  return await calendarFetch<CalendarEvent>(
     `/calendars/${calendarId}/events`,
     accessToken,
     {
@@ -93,7 +103,7 @@ export async function updateEvent(
 ) {
   const calendarId = encodeURIComponent(input.calendarId ?? "primary");
   const eventId = encodeURIComponent(input.eventId);
-  return calendarFetch<CalendarEvent>(
+  return await calendarFetch<CalendarEvent>(
     `/calendars/${calendarId}/events/${eventId}`,
     accessToken,
     {
