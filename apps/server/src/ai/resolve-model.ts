@@ -145,12 +145,16 @@ function isGooglePreferred(preferred: string | null | undefined): boolean {
  * Prefer env Gemini first when:
  * - OPERATOR_PITCH_DEMO / DEMO_OPERATOR is on (video pitch must not freeze)
  * - UI selected Gemini / cleared preferred provider
+ * - Env free Gemini key is present (skip exhausted ChatGPT preferred keys)
  */
 function shouldPreferEnvGemini(preferred: string | null | undefined): boolean {
   if (isOperatorPitchDemo()) {
     return true;
   }
-  return isGooglePreferred(preferred);
+  if (isGooglePreferred(preferred)) {
+    return true;
+  }
+  return Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim());
 }
 
 /**

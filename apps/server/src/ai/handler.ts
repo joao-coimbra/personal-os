@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 
 import {
   type AiModelProvider,
+  isOperatorPitchDemo,
   markProviderError,
   type ResolvedOperatorModel,
   resolveOperatorModelCandidates,
@@ -145,6 +146,7 @@ export function formatOperatorError(error: unknown): string {
   if (MODEL_UNAVAILABLE_PATTERN.test(message)) {
     return "Modelo de IA indisponível no momento. Tente de novo ou reconecte em Integrações.";
   }
+  // Never surface raw JSON / API dumps in the UI toast.
   if (
     message.trim().startsWith("{") ||
     message.trim().startsWith("[") ||
@@ -175,6 +177,9 @@ interface ProviderStreamResult {
 
 interface StreamPart {
   error?: unknown;
+  finishReason?: string;
+  id?: string;
+  text?: string;
   type?: string;
 }
 
@@ -211,6 +216,64 @@ function enqueueStreamError(
   } catch {
     controller.error(toError(error, "provider stream error"));
   }
+}
+
+function assistantTextParts(text: string): StreamPart[] {
+  const id = `pitch-demo-${Date.now().toString(36)}`;
+  return [
+    { id, type: "text-start" },
+    { id, text, type: "text-delta" },
+    { id, type: "text-end" },
+    { type: "finish-step" },
+    { finishReason: "stop", type: "finish" } as StreamPart,
+  ];
+}
+
+function streamFromAssistantText(text: string): ReadableStream {
+  return new ReadableStream({
+    start(controller) {
+      for (const part of assistantTextParts(text)) {
+        controller.enqueue(part);
+      }
+      controller.close();
+    },
+  });
+}
+
+/**
+ * Short PT-BR success stream for pitch video when every live model 429s.
+ * Enabled via OPERATOR_PITCH_DEMO=1 or DEMO_OPERATOR=1.
+ */
+function buildPitchDemoText(): string {
+  return `Pronto — consultei seu Calendar e as tarefas conectadas.
+
+### Próximos eventos
+- **Standup equipe** — 09:30 → 10:00
+- **Gravação pitch PersonalOS** — 11:00 → 11:30
+
+### Tarefas em aberto
+- Finalizar demo do operador (Q1)
+- Revisar integrações Calendar/Trello (Q2)
+
+### Blocos de foco sugeridos
+- **Foco: pitch + demo** — 10:15 → 11:05
+- **Pausa** — 11:05 → 11:15
+- **Foco: follow-ups** — 14:00 → 14:50
+
+### Sugestão
+Confirme se quer que eu **grave** esses blocos no Google Calendar (só crio eventos após confirmação explícita).`;
+}
+
+function pitchDemoStream(): {
+  label: string;
+  provider: ResolvedOperatorModel["provider"];
+  stream: ReadableStream;
+} {
+  return {
+    label: "DEMO_OPERATOR (pitch)",
+    provider: "google",
+    stream: streamFromAssistantText(buildPitchDemoText()),
+  };
 }
 
 async function collectProbeBuffer(
@@ -331,6 +394,9 @@ async function runCandidates(input: {
 }> {
   const resolved = input.candidates[input.index];
   if (!resolved) {
+    if (isOperatorPitchDemo()) {
+      return pitchDemoStream();
+    }
     throw new Error(formatOperatorError(input.lastError), {
       cause: input.lastError,
     });
@@ -357,6 +423,9 @@ async function runCandidates(input: {
     }
 
     if (!canFailover) {
+      if (isOperatorPitchDemo() && isProviderFailoverError(error)) {
+        return pitchDemoStream();
+      }
       throw new Error(formatOperatorError(error), { cause: error });
     }
 

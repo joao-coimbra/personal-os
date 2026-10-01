@@ -15,7 +15,6 @@ export const MODELS: ModelRecord[] = [
     id: "anthropic",
     name: "Claude",
     provider: "Anthropic",
-    recommended: true,
   },
   {
     context: "256K",
@@ -28,6 +27,8 @@ export const MODELS: ModelRecord[] = [
     id: "google",
     name: "Gemini",
     provider: "Google",
+    // Free env model — prefer for demos when ChatGPT/Claude keys are quota-exhausted.
+    recommended: true,
   },
 ];
 
