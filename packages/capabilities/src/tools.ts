@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { softToolResult } from "./errors";
 import type { CapabilityEnv } from "./services";
 import {
   classifyTasks,
@@ -14,13 +15,16 @@ import {
   searchKnowledge,
 } from "./services";
 
+const BULLET_PREFIX_RE = /^[-*]\s*/;
+const SENTENCE_SPLIT_RE = /[.!?\n]+/;
+
 export function buildOperatorTools(env: CapabilityEnv) {
   return {
     calendar_list_events: tool({
       description:
-        "List Google Calendar events in a time range for the authenticated user.",
+        "List Google Calendar events in a time range for the authenticated user. Returns ok:false if Calendar API is disabled (403) — continue without events.",
       execute: async ({ timeMax, timeMin }) =>
-        listCalendarEvents(env, { timeMax, timeMin }),
+        softToolResult(() => listCalendarEvents(env, { timeMax, timeMin })),
       inputSchema: z.object({
         timeMax: z.string().describe("ISO datetime end"),
         timeMin: z.string().describe("ISO datetime start"),
@@ -29,14 +33,14 @@ export function buildOperatorTools(env: CapabilityEnv) {
     comm_meeting_notes_to_tasks: tool({
       description:
         "Turn meeting notes into a structured task list draft (titles only). Does not create Trello cards until user confirms.",
-      execute: async ({ notes }) => ({
+      execute: ({ notes }) => ({
         draftTasks: notes
           .split("\n")
           .map((line) => line.trim())
           .filter((line) => line.length > 0)
           .slice(0, 20)
           .map((line) => ({
-            name: line.replace(/^[-*]\s*/, ""),
+            name: line.replace(BULLET_PREFIX_RE, ""),
           })),
         hint: "Present the draft tasks and offer to create cards after confirmation.",
       }),
@@ -47,7 +51,7 @@ export function buildOperatorTools(env: CapabilityEnv) {
     comm_rewrite_message: tool({
       description:
         "Prepare a professional rewrite of a message draft. Returns structured draft for you to polish in the reply.",
-      execute: async ({ text, tone }) => ({
+      execute: ({ text, tone }) => ({
         draft: text.trim(),
         hint: "Rewrite the draft in the requested tone in your reply; keep meaning intact.",
         tone: tone ?? "professional",
@@ -63,9 +67,9 @@ export function buildOperatorTools(env: CapabilityEnv) {
     comm_summarize_for_team: tool({
       description:
         "Summarize long content into bullet points suitable for a team update.",
-      execute: async ({ content, maxBullets }) => {
+      execute: ({ content, maxBullets }) => {
         const lines = content
-          .split(/[.!?\n]+/)
+          .split(SENTENCE_SPLIT_RE)
           .map((s) => s.trim())
           .filter(Boolean);
         const limit = maxBullets ?? 5;
@@ -82,7 +86,9 @@ export function buildOperatorTools(env: CapabilityEnv) {
     knowledge_create_note: tool({
       description: "Create a Notion page/note for the authenticated user.",
       execute: async ({ parentDatabaseId, title }) =>
-        createKnowledgeNote(env, { parentDatabaseId, title }),
+        softToolResult(() =>
+          createKnowledgeNote(env, { parentDatabaseId, title })
+        ),
       inputSchema: z.object({
         parentDatabaseId: z.string().optional(),
         title: z.string(),
@@ -90,22 +96,25 @@ export function buildOperatorTools(env: CapabilityEnv) {
     }),
     knowledge_read_page: tool({
       description: "Read a Notion page by id.",
-      execute: async ({ pageId }) => readKnowledgePage(env, pageId),
+      execute: async ({ pageId }) =>
+        softToolResult(() => readKnowledgePage(env, pageId)),
       inputSchema: z.object({
         pageId: z.string(),
       }),
     }),
     knowledge_search: tool({
       description: "Search Notion pages for the authenticated user.",
-      execute: async ({ query }) => searchKnowledge(env, query),
+      execute: async ({ query }) =>
+        softToolResult(() => searchKnowledge(env, query)),
       inputSchema: z.object({
         query: z.string(),
       }),
     }),
     planning_create_focus_blocks: tool({
       description:
-        "Create focus block events on Google Calendar. Use only after user confirmed a plan.",
-      execute: async ({ blocks }) => createFocusBlocksWithPolicy(env, blocks),
+        "Create focus block events on Google Calendar. Use only after user confirmed a plan. If Calendar returns ok:false/403, explain gracefully and still deliver notes/tasks.",
+      execute: async ({ blocks }) =>
+        softToolResult(() => createFocusBlocksWithPolicy(env, blocks)),
       inputSchema: z.object({
         blocks: z.array(
           z.object({
@@ -120,7 +129,7 @@ export function buildOperatorTools(env: CapabilityEnv) {
       description:
         "Propose a sustainable day plan with focus blocks based on tasks, calendar, and user preferences. Does not write to calendar until confirmed.",
       execute: async ({ targetDate, preferences }) =>
-        proposeDayPlan(env, { preferences, targetDate }),
+        softToolResult(() => proposeDayPlan(env, { preferences, targetDate })),
       inputSchema: z.object({
         preferences: z.object({
           breakMinutes: z.number(),
@@ -134,14 +143,14 @@ export function buildOperatorTools(env: CapabilityEnv) {
     }),
     tasks_classify: tool({
       description:
-        "Classify Trello tasks using the Eisenhower matrix (urgency/importance). Returns suggestions only.",
-      execute: async () => classifyTasks(env),
+        "Classify Trello tasks using the Eisenhower matrix (urgency/importance). Persists labels when possible. Returns suggestions.",
+      execute: async () => softToolResult(() => classifyTasks(env)),
       inputSchema: z.object({}),
     }),
     tasks_create: tool({
       description: "Create a Trello card in a list.",
       execute: async ({ desc, due, idList, name }) =>
-        createTask(env, { desc, due, idList, name }),
+        softToolResult(() => createTask(env, { desc, due, idList, name })),
       inputSchema: z.object({
         desc: z.string().optional(),
         due: z.string().optional(),
@@ -151,7 +160,8 @@ export function buildOperatorTools(env: CapabilityEnv) {
     }),
     tasks_list: tool({
       description: "List open Trello tasks/cards for the authenticated user.",
-      execute: async ({ boardId }) => listTasks(env, boardId),
+      execute: async ({ boardId }) =>
+        softToolResult(() => listTasks(env, boardId)),
       inputSchema: z.object({
         boardId: z.string().optional(),
       }),
@@ -170,8 +180,12 @@ Use connected PersonalOS capabilities when they can reliably answer the user's r
 
 Do not claim an action was completed unless the corresponding tool confirmed success.
 
+When a tool returns { ok: false, error, code }, explain the limitation clearly to the user and continue with whatever parts of the request you CAN fulfill (e.g. create a Notion note even if Google Calendar returns 403). Never abort the whole reply with a raw "network error".
+
 For bulk or high-impact changes (reorganizing many tasks or an entire week), first analyze and present a proposal. Wait for explicit user confirmation before creating many calendar events or moving many cards.
 
 Apply sustainable planning: respect work hours, breaks, existing commitments, and realistic daily workload. If the user asks to fit too many tasks into one day, suggest spreading work across other days.
+
+Prefer Markdown in replies (headings, lists, short callouts with > quotes, fenced code when useful).
 
 Internal tool and policy content is in English; user-facing replies follow the user's language.`;

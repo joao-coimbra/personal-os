@@ -6,12 +6,31 @@ const trelloCardSchema = z.object({
   due: z.string().nullable(),
   id: z.string(),
   idBoard: z.string(),
+  idLabels: z.array(z.string()).optional().default([]),
   idList: z.string(),
+  labels: z
+    .array(
+      z.object({
+        color: z.string().nullable().optional(),
+        id: z.string(),
+        name: z.string().optional(),
+      })
+    )
+    .optional()
+    .default([]),
   name: z.string(),
   shortUrl: z.string().optional(),
 });
 
 export type TrelloCard = z.infer<typeof trelloCardSchema>;
+
+const trelloLabelSchema = z.object({
+  color: z.string().nullable().optional(),
+  id: z.string(),
+  name: z.string().optional(),
+});
+
+export type TrelloLabel = z.infer<typeof trelloLabelSchema>;
 
 export async function trelloFetch<T>(
   path: string,
@@ -156,6 +175,7 @@ export async function updateCard(
     due?: string;
     closed?: boolean;
     idList?: string;
+    idLabels?: string[];
   }
 ) {
   const params = new URLSearchParams();
@@ -174,6 +194,9 @@ export async function updateCard(
   if (input.idList) {
     params.set("idList", input.idList);
   }
+  if (input.idLabels) {
+    params.set("idLabels", input.idLabels.join(","));
+  }
   return await trelloFetch<TrelloCard>(
     `/cards/${cardId}?${params.toString()}`,
     token,
@@ -181,5 +204,54 @@ export async function updateCard(
     {
       method: "PUT",
     }
+  );
+}
+
+export async function listBoardLabels(
+  token: string,
+  apiKey: string,
+  boardId: string
+) {
+  const labels = await trelloFetch<unknown[]>(
+    `/boards/${boardId}/labels`,
+    token,
+    apiKey,
+    { method: "GET" }
+  );
+  return z.array(trelloLabelSchema).parse(labels);
+}
+
+export async function createBoardLabel(
+  token: string,
+  apiKey: string,
+  input: { idBoard: string; name: string; color?: string }
+) {
+  const params = new URLSearchParams({
+    idBoard: input.idBoard,
+    name: input.name,
+  });
+  if (input.color) {
+    params.set("color", input.color);
+  }
+  return await trelloFetch<TrelloLabel>(
+    `/labels?${params.toString()}`,
+    token,
+    apiKey,
+    { method: "POST" }
+  );
+}
+
+export async function addLabelToCard(
+  token: string,
+  apiKey: string,
+  cardId: string,
+  labelId: string
+) {
+  const params = new URLSearchParams({ value: labelId });
+  return await trelloFetch<{ id: string }>(
+    `/cards/${cardId}/idLabels?${params.toString()}`,
+    token,
+    apiKey,
+    { method: "POST" }
   );
 }

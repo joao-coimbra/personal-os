@@ -115,6 +115,34 @@ export const localWorkspace = pgTable(
   (table) => [index("local_workspace_user_idx").on(table.userId)]
 );
 
+/** Persisted Eisenhower classification for Trello cards (and local fallback). */
+export const taskClassification = pgTable(
+  "task_classification",
+  {
+    boardId: text("board_id"),
+    cardId: text("card_id").notNull(),
+    cardName: text("card_name").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: text("id").primaryKey(),
+    important: integer("important").default(0).notNull(),
+    quadrant: text("quadrant").notNull(),
+    reason: text("reason"),
+    source: text("source").default("auto").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    urgent: integer("urgent").default(0).notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("task_classification_user_idx").on(table.userId),
+    index("task_classification_user_card_idx").on(table.userId, table.cardId),
+  ]
+);
+
 export const mcpCredential = pgTable(
   "mcp_credential",
   {
@@ -136,6 +164,7 @@ export const appRelations = defineRelationsPart(
     localWorkspace,
     mcpCredential,
     pendingAiAction,
+    taskClassification,
     user,
     userPreference,
   },
@@ -161,6 +190,12 @@ export const appRelations = defineRelationsPart(
     pendingAiAction: {
       user: r.one.user({
         from: r.pendingAiAction.userId,
+        to: r.user.id,
+      }),
+    },
+    taskClassification: {
+      user: r.one.user({
+        from: r.taskClassification.userId,
         to: r.user.id,
       }),
     },

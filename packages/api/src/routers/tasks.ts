@@ -24,13 +24,16 @@ function capabilityEnv(context: {
 
 export const tasksRouter = {
   classify: protectedProcedure.handler(async ({ context }) =>
-    classifyTasks(capabilityEnv(context))
+    classifyTasks(capabilityEnv(context), { syncLabels: true })
   ),
 
   list: protectedProcedure
     .input(z.object({ boardId: z.string().optional() }).optional())
     .handler(async ({ context, input }) =>
-      listTasks(capabilityEnv(context), input?.boardId)
+      listTasks(capabilityEnv(context), input?.boardId, {
+        persist: true,
+        syncLabels: false,
+      })
     ),
 
   lists: protectedProcedure

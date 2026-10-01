@@ -195,7 +195,8 @@ export const SHORT_DRAFT_MARKDOWN = toMarkdown(SHORT_DRAFT);
 
 export type MessagePart =
   | { kind: "text"; text: string }
-  | { kind: "code"; language: string; code: string; filename?: string };
+  | { kind: "code"; language: string; code: string; filename?: string }
+  | { kind: "error"; text: string };
 
 export type ChatMessageRecord = {
   id: string;

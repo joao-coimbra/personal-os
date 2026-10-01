@@ -77,12 +77,11 @@ export function isProviderFailoverError(error: unknown): boolean {
     return false;
   }
   const { responseBody, statusCode } = error as ProviderErrorShape;
-  if (
-    statusCode === 401 ||
-    statusCode === 403 ||
-    statusCode === 404 ||
-    statusCode === 429
-  ) {
+  if (statusCode === 401 || statusCode === 404 || statusCode === 429) {
+    return true;
+  }
+  // 403 only for provider auth — Calendar tool 403s must not trigger failover.
+  if (statusCode === 403 && INVALID_KEY_PATTERN.test(message)) {
     return true;
   }
   return typeof responseBody === "string"
@@ -212,7 +211,15 @@ async function openProviderStream(
         }
         await pumpRemaining(iterator, controller);
       } catch (error) {
-        controller.error(error);
+        try {
+          controller.enqueue({
+            error: formatOperatorError(error),
+            type: "error",
+          });
+          controller.close();
+        } catch {
+          controller.error(toError(error, "provider stream error"));
+        }
       }
     },
   });

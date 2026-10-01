@@ -62,8 +62,10 @@ import {
   SparklesIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
+  TriangleAlertIcon,
 } from "lucide-react";
 import { memo, type ReactNode, useEffect, useRef, useState } from "react";
+import { Streamdown } from "streamdown";
 import {
   ASSISTANT_NAME,
   type ChatMessageRecord,
@@ -180,9 +182,10 @@ const MIN_TICKS = 29;
 const MAX_TICKS = 108;
 
 function partCost(part: MessagePart) {
-  return part.kind === "text"
-    ? part.text.length
-    : Math.ceil(part.code.length / CODE_SPEEDUP);
+  if (part.kind === "text" || part.kind === "error") {
+    return part.text.length;
+  }
+  return Math.ceil(part.code.length / CODE_SPEEDUP);
 }
 
 /** One character rate for the whole reply, so a long answer takes longer than
@@ -228,7 +231,7 @@ function sliceReply(
       continue;
     }
 
-    if (part.kind === "text") {
+    if (part.kind === "text" || part.kind === "error") {
       shown.push({
         caret: true,
         part: { ...part, text: part.text.slice(0, local) },
@@ -259,7 +262,10 @@ function sliceReply(
   // Between parts the caret stays on the last text line, so the reply reads as
   // still running; a finished reply never keeps one.
   const last = shown[shown.length - 1];
-  if (shown.length < parts.length && last?.part.kind === "text") {
+  if (
+    shown.length < parts.length &&
+    (last?.part.kind === "text" || last?.part.kind === "error")
+  ) {
     last.caret = true;
   }
   return shown;
@@ -325,7 +331,7 @@ function samePart(a: MessagePart, b: MessagePart) {
   if (a.kind !== b.kind) {
     return false;
   }
-  if (a.kind === "text") {
+  if (a.kind === "text" || a.kind === "error") {
     return a.text === (b as typeof a).text;
   }
   return a.code === (b as typeof a).code;
@@ -347,33 +353,46 @@ const PartBody = memo(
       return <CodeArtifact part={part} streaming={streaming} />;
     }
 
-    // Split on the lone backtick, not a closed pair: mid stream the closing
-    // one has not arrived, and it must never surface as a character.
-    const segments = part.text.split("`");
+    if (part.kind === "error") {
+      return (
+        <div
+          className="flex gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm"
+          role="alert"
+        >
+          <TriangleAlertIcon
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-destructive"
+          />
+          <div className="min-w-0 space-y-1">
+            <p className="font-medium text-destructive">
+              Não foi possível concluir
+            </p>
+            <p className="whitespace-pre-wrap text-muted-foreground">
+              {part.text}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Use Tentar de novo no rodapé da resposta.
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     return (
-      <p className="whitespace-pre-wrap">
-        {segments.map((segment, index) =>
-          index % 2 === 1 ? (
-            <code
-              className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[0.85em]"
-              key={index}
-            >
-              {segment}
-            </code>
-          ) : (
-            segment
-          )
-        )}
-        {/* The caret rides inside the last paragraph so it trails the final word
-            instead of blocking onto its own line. */}
+      <div className="relative min-w-0 text-sm leading-relaxed **:data-[streamdown=code-block]:my-2">
+        <Streamdown
+          className="space-y-2 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/40 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em] [&_h1]:font-semibold [&_h1]:text-base [&_h2]:font-semibold [&_h2]:text-sm [&_h3]:font-medium [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:ps-5 [&_p]:whitespace-pre-wrap [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:ps-5"
+          mode={streaming || caret ? "streaming" : "static"}
+        >
+          {part.text}
+        </Streamdown>
         {caret ? (
           <span
             aria-hidden="true"
             className="ms-0.5 inline-block h-[1em] w-0.5 translate-y-0.5 bg-foreground"
           />
         ) : null}
-      </p>
+      </div>
     );
   },
   (previous, next) =>

@@ -81,72 +81,19 @@ function filterTasks(
   });
 }
 
-function QuadrantGrid({
-  filteredIds,
-  items,
-}: {
-  filteredIds: Set<string> | null;
-  items: Array<{ id: string; name: string; quadrant?: string | null }>;
-}) {
-  const byQuadrant = new Map<string, typeof items>();
-  for (const item of items) {
-    if (filteredIds && !filteredIds.has(item.id)) {
-      continue;
-    }
-    const key = item.quadrant ?? "eliminate";
-    const list = byQuadrant.get(key) ?? [];
-    list.push(item);
-    byQuadrant.set(key, list);
-  }
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {(["do", "schedule", "delegate", "eliminate"] as const).map((q) => (
-        <Card key={q}>
-          <CardHeader>
-            <CardTitle className="text-sm capitalize">{q}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {(byQuadrant.get(q) ?? []).slice(0, 6).map((t) => (
-              <div className="truncate text-sm" key={t.id}>
-                {t.name}
-              </div>
-            ))}
-            {(byQuadrant.get(q) ?? []).length === 0 ? (
-              <p className="text-muted-foreground text-xs">—</p>
-            ) : null}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
 function TasksPage() {
   const { filter } = Route.useSearch();
   const tasks = useQuery(orpc.tasks.list.queryOptions({ input: {} }));
-  const classified = useQuery(orpc.tasks.classify.queryOptions());
 
   const filteredTasks = useMemo(
     () => filterTasks(tasks.data ?? [], filter),
     [filter, tasks.data]
   );
 
-  const filteredIds = useMemo(() => {
-    if (!filter) {
-      return null;
-    }
-    if (filter === "completed") {
-      return new Set<string>();
-    }
-    return new Set(filteredTasks.map((t) => t.id));
-  }, [filter, filteredTasks]);
-
   const title = filter ? FILTER_TITLE[filter] : "Tasks";
   const subtitle = filter
     ? "Filtro da barra lateral"
-    : "Quadro Kanban e Gantt — Trello + Eisenhower";
-  const showQuadrants = filter !== "completed";
+    : "Quadro Kanban e Gantt — a matriz Eisenhower fica na Home";
   const showBoards = !filter;
 
   return (
@@ -155,10 +102,6 @@ function TasksPage() {
         <h1 className="font-semibold text-2xl">{title}</h1>
         <p className="text-muted-foreground text-sm">{subtitle}</p>
       </div>
-
-      {showQuadrants ? (
-        <QuadrantGrid filteredIds={filteredIds} items={classified.data ?? []} />
-      ) : null}
 
       {showBoards ? <TasksBoards /> : null}
 

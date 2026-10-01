@@ -27,6 +27,11 @@ const CODE_FENCE_RE = /```([\w+-]*)\n?([\s\S]*?)```/g;
 const CODE_STRIP_RE = /```[\s\S]*?```/g;
 const PARAGRAPH_SPLIT_RE = /\n{2,}/;
 
+const NETWORK_ERROR_RE =
+  /network error|failed to fetch|fetch failed|load failed|err_network|econnrefused/i;
+const CALENDAR_ERROR_RE = /calendar|403|calendar_disabled/i;
+const CALENDAR_DETAIL_RE = /indispon|403|disabled|permiss/i;
+
 function messageText(message: UIMessage): string {
   return (message.parts ?? [])
     .flatMap((part) => (part.type === "text" ? [part.text] : []))
@@ -88,7 +93,7 @@ function toChatRecords(messages: UIMessage[]): ChatMessageRecord[] {
       part.type.startsWith("tool-")
     );
     const parts = textToParts(text);
-    if (toolParts.length > 0 && message.role === "assistant") {
+    if (toolParts.length > 0 && message.role === "assistant" && !text) {
       parts.unshift({
         kind: "text",
         text: "Consultando dados conectados…",
@@ -109,13 +114,22 @@ function toChatRecords(messages: UIMessage[]): ChatMessageRecord[] {
 }
 
 function resolveChatErrorMessage(error: unknown): string | null {
+  let raw: string | null = null;
   if (error instanceof Error) {
-    return error.message;
+    raw = error.message;
+  } else if (typeof error === "string") {
+    raw = error;
   }
-  if (typeof error === "string") {
-    return error;
+  if (!raw) {
+    return null;
   }
-  return null;
+  if (NETWORK_ERROR_RE.test(raw)) {
+    return "Falha de conexão com o operador. A API pode ter caído no meio da resposta (às vezes após consultar Calendar/Trello). Tente de novo — se o Calendar estiver em 403, o operador deve avisar e continuar com notas/tarefas.";
+  }
+  if (CALENDAR_ERROR_RE.test(raw) && CALENDAR_DETAIL_RE.test(raw)) {
+    return raw;
+  }
+  return raw;
 }
 
 export function OperatorChat({
@@ -165,7 +179,7 @@ export function OperatorChat({
           {
             at: "Agora",
             id: "error",
-            parts: [{ kind: "text", text: errorMessage }],
+            parts: [{ kind: "error", text: errorMessage }],
             role: "assistant" as const,
           },
         ],

@@ -156,7 +156,7 @@ export interface ComponentGroup {
 export const COMPONENT_GROUPS: ComponentGroup[] = [
   {
     accent: "text-sky-500",
-    blurb: "Boards e matriz Eisenhower.",
+    blurb: "Kanban, Gantt e filtros.",
     count: 24,
     icon: <KanbanIcon aria-hidden="true" className="size-4" />,
     id: "tasks",
@@ -376,16 +376,16 @@ export interface TrendingBlock {
 export const TRENDING_BLOCKS: TrendingBlock[] = [
   {
     accent: "text-sky-500",
-    category: "Tarefas",
+    category: "Home",
     icon: <LayoutDashboardIcon aria-hidden="true" className="size-4" />,
     id: "eisenhower",
     installs: "12",
     name: "Matriz Eisenhower",
-    note: "Prioridade alta",
+    note: "Só na Home",
     popularity: 100,
     status: "trending",
     uses: "4",
-    version: "Hoje",
+    version: "Auto",
   },
   {
     accent: "text-teal-500",
@@ -605,7 +605,7 @@ export const CLI_ITEMS: CliItem[] = [
     status: "Pronto",
     statusClassName:
       "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-300",
-    summary: "Ordena cards pela matriz Eisenhower",
+    summary: "Classifica na matriz Eisenhower da Home",
   },
   {
     command: "planejar meu dia",

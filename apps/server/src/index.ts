@@ -10,7 +10,11 @@ import { createUIMessageStreamResponse, toUIMessageStream } from "ai";
 import { fromNodeHeaders } from "better-auth/node";
 import Fastify from "fastify";
 
-import { type AiRequestBody, createOperatorStream } from "./ai/handler";
+import {
+  type AiRequestBody,
+  createOperatorStream,
+  formatOperatorError,
+} from "./ai/handler";
 import { createContext } from "./context";
 import { desktopOrigins, ENV } from "./env.server";
 import { registerMcpRoutes } from "./mcp/register";
@@ -142,8 +146,7 @@ fastify.post("/api/ai", async (request, reply) => {
     const response = createUIMessageStreamResponse({
       stream: toUIMessageStream({
         onError: (error) => {
-          const message =
-            error instanceof Error ? error.message : String(error);
+          const message = formatOperatorError(error);
           fastify.log.error({ err: error }, "Operator stream error");
           return message;
         },
@@ -156,7 +159,7 @@ fastify.post("/api/ai", async (request, reply) => {
     }
     return reply.send(response.body);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = formatOperatorError(error);
     fastify.log.error({ err: error }, "Operator AI request failed");
     return reply.status(502).send({ error: message });
   }

@@ -1,6 +1,6 @@
 import {
-  classifyTasks,
   listCalendarEvents,
+  listStoredClassifications,
   listTasks,
 } from "@personal-os/capabilities";
 import { userPreference } from "@personal-os/db/schema/app";
@@ -35,17 +35,21 @@ export const dashboardRouter = {
 
     let tasks: Awaited<ReturnType<typeof listTasks>> = [];
     let events: Awaited<ReturnType<typeof listCalendarEvents>> = [];
-    let classifications: Awaited<ReturnType<typeof classifyTasks>> = [];
+    let stored: Awaited<ReturnType<typeof listStoredClassifications>> = [];
 
     try {
-      tasks = await listTasks(env);
+      // Persist + soft-sync Trello labels while loading Home.
+      tasks = await listTasks(env, undefined, {
+        persist: true,
+        syncLabels: true,
+      });
     } catch {
       tasks = [];
     }
     try {
-      classifications = await classifyTasks(env);
+      stored = await listStoredClassifications(env);
     } catch {
-      classifications = [];
+      stored = [];
     }
     try {
       const start = startOfDay(new Date());
@@ -59,16 +63,33 @@ export const dashboardRouter = {
     }
 
     const overdue = tasks.filter((t) => t.overdue);
+    const classifications =
+      tasks.length > 0
+        ? tasks.map((t) => ({
+            id: t.id,
+            label: t.quadrant ?? "eliminate",
+            name: t.name,
+            quadrant: t.quadrant,
+            reason: t.reason,
+          }))
+        : stored.map((row) => ({
+            id: row.id,
+            label: row.label,
+            name: row.name,
+            quadrant: row.quadrant,
+            reason: row.reason ?? undefined,
+          }));
     const priority = classifications.filter(
       (c) => c.quadrant === "do" || c.quadrant === "schedule"
     );
 
     return {
       eventsUpcoming: events.slice(0, 5),
+      matrixTasks: classifications,
       overdueCount: overdue.length,
       pendingCount: tasks.length,
       preferences: prefs,
-      priorityTasks: priority.slice(0, 5),
+      priorityTasks: priority.slice(0, 8),
       tasksSample: tasks.slice(0, 8),
     };
   }),
