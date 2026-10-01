@@ -34,24 +34,29 @@ export interface AiHandlerConfig {
 }
 
 const FAILOVER_ERROR_PATTERN =
-  /invalid.*api.?key|unauthorized|401|403|insufficient.?quota|credit.?balance|billing|quota|429|no credits|model .+ is no longer available|not found for API version|NOT_FOUND|permission.?denied|high demand|No output generated|RESOURCE_EXHAUSTED/i;
+  /invalid.*api.?key|unauthorized|401|403|insufficient.?quota|credit.?balance|billing|quota|429|no credits|model .+ is no longer available|not found for API version|NOT_FOUND|permission.?denied|high demand|UNAVAILABLE|No output generated|RESOURCE_EXHAUSTED/i;
 
 const QUOTA_ERROR_PATTERN =
-  /insufficient.?quota|credit.?balance|no credits|billing|429/i;
+  /insufficient.?quota|credit.?balance|no credits|billing|exceeded your current quota|rate.?limit|429/i;
 
 const INVALID_KEY_PATTERN = /invalid.*api.?key|unauthorized|401|403/i;
 
 const MODEL_UNAVAILABLE_PATTERN =
   /no longer available|NOT_FOUND|not found for API/i;
 
-const CONTENT_PART_TYPES = new Set([
+const HIGH_DEMAND_PATTERN = /high demand|UNAVAILABLE|503/i;
+
+/**
+ * Only commit (disable failover) once the model emits user-visible text /
+ * reasoning or the overall stream finishes. Tool-call / tool-result /
+ * finish-step must NOT commit — Gemini often 503/429 on the *next* step after
+ * tools, and we still need to failover before the HTTP response starts.
+ */
+const COMMIT_PART_TYPES = new Set([
   "text-start",
   "text-delta",
-  "tool-call",
-  "tool-input-start",
   "reasoning-start",
   "reasoning-delta",
-  "finish-step",
   "finish",
 ]);
 
@@ -77,7 +82,12 @@ export function isProviderFailoverError(error: unknown): boolean {
     return false;
   }
   const { responseBody, statusCode } = error as ProviderErrorShape;
-  if (statusCode === 401 || statusCode === 404 || statusCode === 429) {
+  if (
+    statusCode === 401 ||
+    statusCode === 404 ||
+    statusCode === 429 ||
+    statusCode === 503
+  ) {
     return true;
   }
   // 403 only for provider auth — Calendar tool 403s must not trigger failover.
@@ -91,6 +101,9 @@ export function isProviderFailoverError(error: unknown): boolean {
 
 export function formatOperatorError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
+  if (HIGH_DEMAND_PATTERN.test(message) && !QUOTA_ERROR_PATTERN.test(message)) {
+    return "Modelo temporariamente indisponível (alta demanda). Tente de novo em instantes.";
+  }
   if (QUOTA_ERROR_PATTERN.test(message)) {
     return "Créditos/cota do modelo esgotados. Reconecte outra key em Integrações ou aguarde o Gemini do ambiente.";
   }
@@ -110,6 +123,9 @@ function errorCodeFor(error: unknown): string {
   }
   if (INVALID_KEY_PATTERN.test(message)) {
     return "invalid_api_key";
+  }
+  if (HIGH_DEMAND_PATTERN.test(message)) {
+    return "high_demand";
   }
   return "provider_error";
 }
@@ -143,17 +159,26 @@ User preferences:
 - focus block: ${prefs?.focusMinutes ?? 50} min, break: ${prefs?.breakMinutes ?? 15} min`;
 }
 
-function readNextPart(
-  iterator: StreamIterator
-): Promise<IteratorResult<unknown>> {
-  return iterator.next();
+function enqueueStreamError(
+  controller: ReadableStreamDefaultController,
+  error: unknown
+): void {
+  try {
+    controller.enqueue({
+      error: formatOperatorError(error),
+      type: "error",
+    });
+    controller.close();
+  } catch {
+    controller.error(toError(error, "provider stream error"));
+  }
 }
 
 async function collectProbeBuffer(
   iterator: StreamIterator,
   buffer: StreamPart[] = []
 ): Promise<StreamPart[]> {
-  const next = await readNextPart(iterator);
+  const next = await iterator.next();
   if (next.done) {
     return buffer;
   }
@@ -162,7 +187,7 @@ async function collectProbeBuffer(
   if (part.type === "error") {
     throw toError(part.error, "provider stream error");
   }
-  if (part.type && CONTENT_PART_TYPES.has(part.type)) {
+  if (part.type && COMMIT_PART_TYPES.has(part.type)) {
     return buffer;
   }
   return collectProbeBuffer(iterator, buffer);
@@ -172,14 +197,16 @@ async function pumpRemaining(
   iterator: StreamIterator,
   controller: ReadableStreamDefaultController
 ): Promise<void> {
-  const next = await readNextPart(iterator);
+  const next = await iterator.next();
   if (next.done) {
     controller.close();
     return;
   }
   const part = next.value as StreamPart;
   if (part.type === "error") {
-    controller.error(toError(part.error, "provider stream error"));
+    // Never controller.error() here — that aborts HTTP after headers and the
+    // client surfaces a raw "network error" / connection-failure card.
+    enqueueStreamError(controller, part.error);
     return;
   }
   controller.enqueue(part);
@@ -187,9 +214,9 @@ async function pumpRemaining(
 }
 
 /**
- * Start streamText and wait until the provider accepts the request (first
- * content part) or fails. Returns a ReadableStream that replays buffered
- * parts then continues from the live fullStream.
+ * Start streamText and wait until the provider emits user-visible output
+ * (or fails). Tool rounds are buffered so mid-tool-loop 503/429 can still
+ * failover before the HTTP response starts.
  */
 async function openProviderStream(
   result: ProviderStreamResult
@@ -211,15 +238,7 @@ async function openProviderStream(
         }
         await pumpRemaining(iterator, controller);
       } catch (error) {
-        try {
-          controller.enqueue({
-            error: formatOperatorError(error),
-            type: "error",
-          });
-          controller.close();
-        } catch {
-          controller.error(toError(error, "provider stream error"));
-        }
+        enqueueStreamError(controller, error);
       }
     },
   });
@@ -241,7 +260,8 @@ async function tryProviderCandidate(input: {
   });
 
   const result = streamText({
-    maxRetries: 0,
+    // Retry transient Gemini 503/high-demand before failing the candidate.
+    maxRetries: 2,
     messages: input.messages,
     model,
     stopWhen: stepCountIs(8),

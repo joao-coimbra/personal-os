@@ -9,11 +9,14 @@ import { and, eq, inArray } from "drizzle-orm";
 const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 const OPENAI_MODEL = "gpt-5.4";
 /**
- * Gemini Flash fallback. Prefer the preview id: gemini-2.5-flash is retired for
- * new keys, and gemini-3.8-flash currently fails more often under capacity.
+ * Gemini Flash fallbacks. Prefer lite/latest aliases — gemini-3-flash-preview
+ * and gemini-3.8-flash frequently hit free-tier 429 / high-demand 503 mid
+ * multi-step (after tools), which used to abort the operator stream.
  */
-const GOOGLE_MODEL = "gemini-3-flash-preview";
+const GOOGLE_MODEL = "gemini-flash-lite-latest";
 const GOOGLE_MODEL_FALLBACKS = [
+  "gemini-flash-lite-latest",
+  "gemini-flash-latest",
   "gemini-3-flash-preview",
   "gemini-3.8-flash",
 ] as const;
