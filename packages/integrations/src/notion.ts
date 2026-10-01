@@ -14,7 +14,7 @@ const pageSchema = z.object({
 
 const NOTION_VERSION = "2022-06-28";
 
-function notionHeaders(accessToken: string): HeadersInit {
+function notionHeaders(accessToken: string): Record<string, string> {
   return {
     Authorization: `Bearer ${accessToken}`,
     "Content-Type": "application/json",

@@ -129,16 +129,16 @@ function matchStructuredLine(line: string): NotionBlock | null {
     return divider();
   }
   const headingMatch = line.match(HEADING_RE);
-  if (headingMatch) {
+  if (headingMatch?.[1] && headingMatch[2]) {
     const level = Math.min(headingMatch[1].length, 3) as 1 | 2 | 3;
     return heading(level, headingMatch[2].trim());
   }
   const bulletMatch = line.match(BULLET_RE);
-  if (bulletMatch) {
+  if (bulletMatch?.[1]) {
     return bullet(bulletMatch[1].trim());
   }
   const numberedMatch = line.match(NUMBERED_RE);
-  if (numberedMatch) {
+  if (numberedMatch?.[1]) {
     return numbered(numberedMatch[1].trim());
   }
   return null;
