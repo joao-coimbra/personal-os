@@ -52,7 +52,7 @@ cat > "$FRONT_MATTER" <<'EOF'
     <p class="subtitle">Meu Sistema Operacional Pessoal: Utilizando IA para Gerenciar Tempo, Comunicação e Produtividade</p>
   </div>
   <div class="front-bottom">
-    <p class="place-date">30 de setembro de 2026</p>
+    <p class="place-date">1 de outubro de 2026</p>
   </div>
 </section>
 
@@ -76,7 +76,7 @@ cat > "$FRONT_MATTER" <<'EOF'
     <div class="meta-block">
       <div><span class="label">RA:</span> 188635</div>
     </div>
-    <p class="place-date">30 de setembro de 2026</p>
+    <p class="place-date">1 de outubro de 2026</p>
   </div>
 </section>
 EOF
