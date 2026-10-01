@@ -115,19 +115,38 @@ function toChatRecords(messages: UIMessage[]): ChatMessageRecord[] {
 
 function unwrapErrorPayload(raw: string): string {
   const trimmed = raw.trim();
-  if (!(trimmed.startsWith("{") && trimmed.includes('"error"'))) {
+  if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) {
     return raw;
   }
   try {
-    const parsed = JSON.parse(trimmed) as { error?: unknown };
+    const parsed = JSON.parse(trimmed) as {
+      error?: string | { message?: string };
+      message?: string;
+    };
     if (typeof parsed.error === "string" && parsed.error.trim()) {
       return parsed.error.trim();
+    }
+    if (
+      parsed.error &&
+      typeof parsed.error === "object" &&
+      typeof parsed.error.message === "string"
+    ) {
+      return parsed.error.message;
+    }
+    if (typeof parsed.message === "string" && parsed.message.trim()) {
+      return parsed.message.trim();
     }
   } catch {
     // Keep the original string when the body is not JSON.
   }
   return raw;
 }
+
+const QUOTA_TOAST_RE =
+  /insufficient.?quota|credit.?balance|no credits|billing|exceeded your current quota|rate.?limit|429|RESOURCE_EXHAUSTED|quota.?exhausted|cota/i;
+const INVALID_KEY_TOAST_RE = /invalid.*api.?key|unauthorized|401|403/i;
+const HIGH_DEMAND_TOAST_RE = /high demand|UNAVAILABLE|503/i;
+const RAW_JSON_ERROR_RE = /"error"\s*:/;
 
 function resolveChatErrorMessage(error: unknown): string | null {
   let raw: string | null = null;
@@ -143,8 +162,25 @@ function resolveChatErrorMessage(error: unknown): string | null {
   if (NETWORK_ERROR_RE.test(raw)) {
     return "Falha de conexão com o operador. A API pode ter caído no meio da resposta (às vezes após consultar Calendar/Trello). Tente de novo — se o Calendar estiver em 403, o operador deve avisar e continuar com notas/tarefas.";
   }
+  if (HIGH_DEMAND_TOAST_RE.test(raw) && !QUOTA_TOAST_RE.test(raw)) {
+    return "Modelo temporariamente indisponível (alta demanda). Tente de novo em instantes.";
+  }
+  if (QUOTA_TOAST_RE.test(raw)) {
+    return "Créditos/cota do modelo esgotados. Escolha Gemini (gratuito) no seletor do operador ou reconecte outra key em Integrações.";
+  }
+  if (INVALID_KEY_TOAST_RE.test(raw)) {
+    return "API key do modelo inválida ou expirada. Reconecte em Integrações.";
+  }
   if (CALENDAR_ERROR_RE.test(raw) && CALENDAR_DETAIL_RE.test(raw)) {
     return raw;
+  }
+  // Never show raw JSON / API dumps in the red error card.
+  if (
+    raw.trim().startsWith("{") ||
+    raw.trim().startsWith("[") ||
+    RAW_JSON_ERROR_RE.test(raw)
+  ) {
+    return "Falha ao gerar resposta do operador. Tente Gemini no seletor ou reconecte em Integrações.";
   }
   return raw;
 }

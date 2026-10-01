@@ -46,6 +46,8 @@ const MODEL_UNAVAILABLE_PATTERN =
 
 const HIGH_DEMAND_PATTERN = /high demand|UNAVAILABLE|503/i;
 
+const RAW_JSON_ERROR_RE = /"error"\s*:/;
+
 /**
  * Only commit (disable failover) once the model emits user-visible text /
  * reasoning or the overall stream finishes. Tool-call / tool-result /
@@ -99,19 +101,56 @@ export function isProviderFailoverError(error: unknown): boolean {
     : false;
 }
 
+function unwrapProviderErrorMessage(raw: string): string {
+  const trimmed = raw.trim();
+  if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) {
+    return raw;
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      error?: string | { message?: string };
+      message?: string;
+    };
+    if (typeof parsed.error === "string" && parsed.error.trim()) {
+      return parsed.error.trim();
+    }
+    if (
+      parsed.error &&
+      typeof parsed.error === "object" &&
+      typeof parsed.error.message === "string"
+    ) {
+      return parsed.error.message;
+    }
+    if (typeof parsed.message === "string" && parsed.message.trim()) {
+      return parsed.message.trim();
+    }
+  } catch {
+    // Keep original when the payload is not JSON.
+  }
+  return raw;
+}
+
 export function formatOperatorError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+  let message = error instanceof Error ? error.message : String(error);
+  message = unwrapProviderErrorMessage(message);
   if (HIGH_DEMAND_PATTERN.test(message) && !QUOTA_ERROR_PATTERN.test(message)) {
     return "Modelo temporariamente indisponível (alta demanda). Tente de novo em instantes.";
   }
   if (QUOTA_ERROR_PATTERN.test(message)) {
-    return "Créditos/cota do modelo esgotados. Reconecte outra key em Integrações ou aguarde o Gemini do ambiente.";
+    return "Créditos/cota do modelo esgotados. Escolha Gemini (gratuito) no seletor do operador ou reconecte outra key em Integrações.";
   }
   if (INVALID_KEY_PATTERN.test(message)) {
     return "API key do modelo inválida ou expirada. Reconecte em Integrações.";
   }
   if (MODEL_UNAVAILABLE_PATTERN.test(message)) {
     return "Modelo de IA indisponível no momento. Tente de novo ou reconecte em Integrações.";
+  }
+  if (
+    message.trim().startsWith("{") ||
+    message.trim().startsWith("[") ||
+    RAW_JSON_ERROR_RE.test(message)
+  ) {
+    return "Falha ao gerar resposta do operador. Tente Gemini no seletor ou reconecte em Integrações.";
   }
   return message || "Falha ao gerar resposta do operador.";
 }

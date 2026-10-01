@@ -9,19 +9,30 @@ import { and, eq, inArray } from "drizzle-orm";
 const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 const OPENAI_MODEL = "gpt-5.4";
 /**
- * Gemini Flash fallbacks for the env GOOGLE_GENERATIVE_AI_API_KEY.
- * Prefer free-tier-friendly lite aliases first — gemini-flash-latest /
- * gemini-3-flash-preview / gemini-3.8-flash often share a tight free quota
- * and return 429 while lite still succeeds.
+ * Free-tier Gemini models that currently accept the env
+ * GOOGLE_GENERATIVE_AI_API_KEY (probed: flash-lite-latest / 3.5-flash-lite /
+ * 3.1-flash-lite / 3.5-flash = 200; gemini-flash-latest often 429).
  */
-const GOOGLE_MODEL = "gemini-flash-lite-latest";
+export const GOOGLE_MODEL = "gemini-flash-lite-latest";
 const GOOGLE_MODEL_FALLBACKS = [
   "gemini-flash-lite-latest",
   "gemini-3.5-flash-lite",
-  "gemini-3.5-flash",
   "gemini-3.1-flash-lite",
+  "gemini-3.5-flash",
   "gemini-flash-latest",
 ] as const;
+
+/** Pitch / cloud demo: never burn exhausted ChatGPT before env Gemini. */
+export function isOperatorPitchDemo(): boolean {
+  const pitch = process.env.OPERATOR_PITCH_DEMO ?? "";
+  const demo = process.env.DEMO_OPERATOR ?? "";
+  return (
+    pitch === "1" ||
+    pitch.toLowerCase() === "true" ||
+    demo === "1" ||
+    demo.toLowerCase() === "true"
+  );
+}
 
 export type AiModelProvider = "anthropic" | "openai";
 
@@ -131,9 +142,21 @@ function isGooglePreferred(preferred: string | null | undefined): boolean {
 }
 
 /**
+ * Prefer env Gemini first when:
+ * - OPERATOR_PITCH_DEMO / DEMO_OPERATOR is on (video pitch must not freeze)
+ * - UI selected Gemini / cleared preferred provider
+ */
+function shouldPreferEnvGemini(preferred: string | null | undefined): boolean {
+  if (isOperatorPitchDemo()) {
+    return true;
+  }
+  return isGooglePreferred(preferred);
+}
+
+/**
  * Ordered candidates:
- * - Gemini selected / no preference → env Gemini first, then connected keys
- * - Preferred openai/anthropic → that key → other connected keys → Gemini env
+ * - Pitch demo / Gemini / env key → free Gemini first, then connected keys
+ * - Explicit openai/anthropic without env Gemini → that key → Gemini env
  */
 export async function resolveOperatorModelCandidates(input: {
   db: Database;
@@ -155,12 +178,11 @@ export async function resolveOperatorModelCandidates(input: {
   const connected = new Set(
     connectedRows.map((row) => row.provider as AiModelProvider)
   );
-  // When Gemini is selected, still resolve connected keys as last resort —
+  const preferGemini = shouldPreferEnvGemini(input.preferredAiProvider);
+  // When Gemini leads, still resolve connected keys as last resort —
   // but never try them before env Gemini (they are often quota-exhausted).
   const order = buildProviderOrder(
-    isGooglePreferred(input.preferredAiProvider)
-      ? null
-      : input.preferredAiProvider,
+    preferGemini ? null : input.preferredAiProvider,
     connected
   );
 
@@ -181,8 +203,7 @@ export async function resolveOperatorModelCandidates(input: {
     googleFallback(modelId)
   );
 
-  // Gemini UI selection must not burn exhausted OpenAI/Anthropic keys first.
-  if (isGooglePreferred(input.preferredAiProvider)) {
+  if (preferGemini) {
     return [...googleCandidates, ...userKeyCandidates];
   }
   return [...userKeyCandidates, ...googleCandidates];
