@@ -91,7 +91,7 @@ export async function getValidGoogleCalendarToken(
   const shouldRefresh =
     Boolean(
       oauth?.clientId && oauth.clientSecret && row.refreshTokenEncrypted
-    ) && Boolean(oauth.forceRefresh || expired || accountExpired || !current);
+    ) && Boolean(oauth?.forceRefresh || expired || accountExpired || !current);
 
   if (!shouldRefresh) {
     return current;
