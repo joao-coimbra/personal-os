@@ -50,9 +50,16 @@ lerna-debug.log*
 # Testing
 coverage
 .nyc_output
+.playwright-mcp
+**/test-results/
+**/playwright-report/
 
 # Misc
 *.tgz
 .cache
 tmp
 temp
+
+# Generated delivery HTML (PDF is committed)
+docs/entrega/PersonalOS-Documentacao-Entrega.html
+docs/entrega/.cover-fragment.html

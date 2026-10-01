@@ -1,32 +1,33 @@
-import { devToolsMiddleware } from "@ai-sdk/devtools";
-import { google } from "@ai-sdk/google";
 import fastifyCors from "@fastify/cors";
+import fastifyMultipart from "@fastify/multipart";
 import { OpenAPIHandler } from "@orpc/openapi/fastify";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fastify";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { appRouter } from "@personal-os/api/routers/index";
-import {
-  createUIMessageStreamResponse,
-  streamText,
-  toUIMessageStream,
-  type UIMessage,
-  convertToModelMessages,
-  wrapLanguageModel,
-} from "ai";
+import { createUIMessageStreamResponse, toUIMessageStream } from "ai";
+import { fromNodeHeaders } from "better-auth/node";
 import Fastify from "fastify";
 
+import {
+  type AiRequestBody,
+  createOperatorStream,
+  formatOperatorError,
+} from "./ai/handler";
 import { createContext } from "./context";
 import { desktopOrigins, ENV } from "./env.server";
-import { auth } from "./services";
+import { registerMcpRoutes } from "./mcp/register";
+import { registerFileRoutes } from "./routes/files";
+import { registerOAuthRoutes } from "./routes/oauth";
+import { auth, db } from "./services";
 
 const baseCorsConfig = {
-  origin: [ENV.CORS_ORIGIN, ...desktopOrigins],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true,
-  maxAge: 86400,
+  maxAge: 86_400,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  origin: [ENV.CORS_ORIGIN, ...desktopOrigins],
 };
 
 const rpcHandler = new RPCHandler(appRouter, {
@@ -38,14 +39,14 @@ const rpcHandler = new RPCHandler(appRouter, {
 });
 
 const apiHandler = new OpenAPIHandler(appRouter, {
-  plugins: [
-    new OpenAPIReferencePlugin({
-      schemaConverters: [new ZodToJsonSchemaConverter()],
-    }),
-  ],
   interceptors: [
     onError((error) => {
       console.error(error);
+    }),
+  ],
+  plugins: [
+    new OpenAPIReferencePlugin({
+      schemaConverters: [new ZodToJsonSchemaConverter()],
     }),
   ],
 });
@@ -55,8 +56,12 @@ const fastify = Fastify({
 });
 
 fastify.register(fastifyCors, baseCorsConfig);
+fastify.register(fastifyMultipart, { limits: { fileSize: 8 * 1024 * 1024 } });
+registerFileRoutes(fastify);
+registerMcpRoutes(fastify);
+registerOAuthRoutes(fastify);
 
-fastify.register(async (rpcApp) => {
+fastify.register((rpcApp) => {
   // Fully utilize oRPC features by letting oRPC parse the request body.
   rpcApp.addContentTypeParser("*", (_, _payload, done) => {
     done(null, undefined);
@@ -86,60 +91,83 @@ fastify.register(async (rpcApp) => {
 });
 
 fastify.route({
-  method: ["GET", "POST"],
-  url: "/api/auth/*",
   async handler(request, reply) {
     try {
       const url = new URL(request.url, `http://${request.headers.host}`);
       const headers = new Headers();
-      Object.entries(request.headers).forEach(([key, value]) => {
-        if (value) headers.append(key, value.toString());
-      });
+      for (const [key, value] of Object.entries(request.headers)) {
+        if (value) {
+          headers.append(key, value.toString());
+        }
+      }
       const req = new Request(url.toString(), {
-        method: request.method,
-        headers,
         body: request.body ? JSON.stringify(request.body) : undefined,
+        headers,
+        method: request.method,
       });
       const response = await auth.handler(req);
       reply.status(response.status);
-      response.headers.forEach((value, key) => reply.header(key, value));
+      for (const [key, value] of response.headers.entries()) {
+        reply.header(key, value);
+      }
       reply.send(response.body ? await response.text() : null);
     } catch (error) {
       fastify.log.error({ err: error }, "Authentication Error:");
       reply.status(500).send({
-        error: "Internal authentication error",
         code: "AUTH_FAILURE",
+        error: "Internal authentication error",
       });
     }
   },
+  method: ["GET", "POST"],
+  url: "/api/auth/*",
 });
 
-interface AiRequestBody {
-  id?: string;
-  messages: UIMessage[];
-}
+fastify.post("/api/ai", async (request, reply) => {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(request.headers),
+  });
+  if (!session?.user) {
+    return reply.status(401).send({ error: "Unauthorized" });
+  }
 
-fastify.post("/api/ai", async function (request) {
-  const { messages } = request.body as AiRequestBody;
-  const model = wrapLanguageModel({
-    model: google("gemini-2.5-flash"),
-    middleware: devToolsMiddleware(),
-  });
-  const result = streamText({
-    model,
-    messages: await convertToModelMessages(messages),
-  });
+  const body = request.body as AiRequestBody;
+  try {
+    const result = await createOperatorStream(
+      {
+        db,
+        encryptionKey: ENV.INTEGRATION_ENCRYPTION_KEY,
+        trelloApiKey: ENV.TRELLO_API_KEY,
+        userId: session.user.id,
+      },
+      body
+    );
 
-  return createUIMessageStreamResponse({
-    stream: toUIMessageStream({ stream: result.stream }),
-  });
+    const response = createUIMessageStreamResponse({
+      stream: toUIMessageStream({
+        onError: (error) => {
+          const message = formatOperatorError(error);
+          fastify.log.error({ err: error }, "Operator stream error");
+          return message;
+        },
+        stream: result.stream as never,
+      }),
+    });
+    reply.status(response.status);
+    for (const [key, value] of response.headers.entries()) {
+      reply.header(key, value);
+    }
+    return reply.send(response.body);
+  } catch (error) {
+    const message = formatOperatorError(error);
+    fastify.log.error({ err: error }, "Operator AI request failed");
+    return reply.status(502).send({ error: message });
+  }
 });
 
-fastify.get("/", async () => {
-  return "OK";
-});
+fastify.get("/", async () => "OK");
 
-fastify.listen({ port: 3000 }, (err) => {
+fastify.listen({ host: "0.0.0.0", port: 3000 }, (err) => {
   if (err) {
     fastify.log.error(err);
     process.exit(1);

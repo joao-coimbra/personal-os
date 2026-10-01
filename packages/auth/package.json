@@ -12,8 +12,10 @@
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.5",
     "@personal-os/db": "workspace:*",
+    "@personal-os/integrations": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
+    "resend": "^6.31.0",
     "zod": "catalog:"
   },
   "devDependencies": {

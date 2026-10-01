@@ -1,0 +1,398 @@
+/* PersonalOS entrega PDF: Arial (Arimo metric-compatible) + quebras ABNT */
+
+@font-face {
+  font-family: "Arial";
+  src: url("/usr/share/fonts/truetype/croscore/Arimo-Regular.ttf");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Arial";
+  src: url("/usr/share/fonts/truetype/croscore/Arimo-Bold.ttf");
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Arial";
+  src: url("/usr/share/fonts/truetype/croscore/Arimo-Italic.ttf");
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Arial";
+  src: url("/usr/share/fonts/truetype/croscore/Arimo-BoldItalic.ttf");
+  font-weight: 700;
+  font-style: italic;
+}
+
+:root {
+  --ink: #111111;
+  --ink-soft: #333333;
+  --muted: #555555;
+  --rule: #cccccc;
+  --rule-strong: #111111;
+  --paper: #f7f7f7;
+  --code-bg: #f4f4f4;
+}
+
+@page {
+  size: A4;
+  /* ABNT aproximado: superior/esquerda 3 cm; inferior/direita 2 cm */
+  margin: 3cm 2cm 2cm 3cm;
+  @bottom-center {
+    content: counter(page);
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+    color: #555555;
+  }
+}
+
+/* Capa e folha de rosto: margens simétricas, sem número de página */
+@page capa {
+  size: A4;
+  margin: 2.5cm 2.5cm 2.5cm 2.5cm;
+  @bottom-center {
+    content: none;
+  }
+}
+
+@page folha-rosto {
+  size: A4;
+  margin: 2.5cm 2.5cm 2.5cm 2.5cm;
+  @bottom-center {
+    content: none;
+  }
+}
+
+html {
+  font-size: 12pt;
+}
+
+body {
+  max-width: 100%;
+  margin: 0;
+  font-family: Arial, "Liberation Sans", sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink);
+  text-align: justify;
+  hyphens: auto;
+  background: #fff;
+}
+
+/* Segurança: se o bloco do pandoc voltar a aparecer, não imprime */
+header#title-block-header {
+  display: none !important;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: Arial, "Liberation Sans", sans-serif;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
+  text-align: left;
+  page-break-after: avoid;
+  break-after: avoid;
+  hyphens: none;
+}
+
+h1 {
+  padding-bottom: 0.35em;
+  margin: 0 0 1em;
+  font-size: 14pt;
+  border-bottom: 1pt solid var(--rule-strong);
+}
+
+h2 {
+  padding-bottom: 0.2em;
+  margin: 0 0 0.75em;
+  font-size: 13pt;
+  border-bottom: 0.5pt solid var(--rule);
+}
+
+h3 {
+  margin: 1.2em 0 0.45em;
+  font-size: 12pt;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+h4 {
+  margin: 1em 0 0.4em;
+  font-size: 12pt;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+p {
+  margin: 0 0 0.8em;
+  widows: 3;
+  orphans: 3;
+}
+
+li {
+  margin-bottom: 0.2em;
+  widows: 3;
+  orphans: 3;
+}
+
+a {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+code,
+pre {
+  font-family: "Liberation Mono", "DejaVu Sans Mono", Consolas, monospace;
+  font-size: 0.85em;
+  hyphens: none;
+}
+
+code {
+  padding: 0.05em 0.25em;
+  background: var(--code-bg);
+  border: 0.5pt solid var(--rule);
+}
+
+pre {
+  margin: 0.8em 0 1em;
+  padding: 0.8em 1em;
+  line-height: 1.4;
+  text-align: left;
+  white-space: pre-wrap;
+  background: var(--code-bg);
+  border: 0.5pt solid var(--rule);
+  page-break-inside: avoid;
+}
+
+pre code {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+table {
+  width: 100%;
+  margin: 0.8em 0 1.1em;
+  border-collapse: collapse;
+  font-family: Arial, "Liberation Sans", sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.35;
+  text-align: left;
+  page-break-inside: avoid;
+}
+
+th,
+td {
+  padding: 0.4em 0.5em;
+  vertical-align: top;
+  border: 0.5pt solid #999999;
+}
+
+th {
+  font-weight: 700;
+  color: #fff;
+  background: #333333;
+}
+
+tr:nth-child(even) td {
+  background: var(--paper);
+}
+
+hr {
+  display: none;
+}
+
+ul,
+ol {
+  padding-left: 1.35em;
+  margin: 0 0 0.85em;
+}
+
+/* ---- Capa e folha de rosto ---- */
+.capa {
+  page: capa;
+  page-break-after: always;
+  break-after: page;
+  min-height: 230mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: center;
+  box-sizing: border-box;
+  padding: 6mm 2mm 4mm;
+}
+
+.folha-rosto {
+  page: folha-rosto;
+  page-break-after: always;
+  break-after: page;
+  min-height: 230mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: center;
+  box-sizing: border-box;
+  padding: 6mm 2mm 4mm;
+}
+
+.front-top {
+  padding-top: 8mm;
+}
+
+.capa .institution,
+.folha-rosto .institution {
+  margin: 0 0 0.4em;
+  font-family: Arial, sans-serif;
+  font-size: 16pt;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.capa .course,
+.folha-rosto .course {
+  max-width: 28em;
+  margin: 0.6em auto 0;
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.capa .module,
+.folha-rosto .module {
+  margin: 0.35em auto 0;
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.front-mid {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10mm 4mm;
+}
+
+.capa .author-name,
+.folha-rosto .author-name {
+  margin: 0 0 12mm;
+  font-family: Arial, sans-serif;
+  font-size: 12pt;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.capa h1,
+.folha-rosto h1 {
+  max-width: 18em;
+  padding: 0;
+  margin: 0 auto 0.7em;
+  font-family: Arial, sans-serif;
+  font-size: 16pt;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+  letter-spacing: 0;
+  border: none;
+}
+
+.capa .subtitle,
+.folha-rosto .subtitle {
+  max-width: 32em;
+  margin: 0 auto 10mm;
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.folha-rosto .nature {
+  max-width: 30em;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.front-bottom {
+  padding-bottom: 6mm;
+}
+
+.folha-rosto .meta-block {
+  margin: 0 auto 8mm;
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.7;
+  color: var(--ink);
+  text-align: center;
+}
+
+.folha-rosto .meta-block .label {
+  font-weight: 700;
+}
+
+.capa .place-date,
+.folha-rosto .place-date {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ---- Sumário em página própria ---- */
+.sumario-page {
+  page-break-after: always;
+  break-after: page;
+}
+
+.sumario-page h2 {
+  margin-top: 0;
+}
+
+/* ---- Seções principais em páginas novas ---- */
+.section-break {
+  page-break-before: always;
+  break-before: page;
+}
+
+.section-break > h2:first-child {
+  margin-top: 0;
+  page-break-before: avoid;
+}
+
+/* Evitar título órfão: manter h2/h3 com o bloco seguinte */
+h2 + p,
+h2 + table,
+h2 + ul,
+h2 + ol,
+h3 + p,
+h3 + table,
+h3 + ul,
+h3 + ol {
+  page-break-before: avoid;
+}

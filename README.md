@@ -1,142 +1,126 @@
-# personal-os
+# PersonalOS
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Fastify, ORPC, and more.
+Sistema operacional pessoal (POS) com dashboard, matriz de Eisenhower, time blocking e operador de IA. Integra **Trello**, **Google Calendar** e **Notion** para organizar tarefas, compromissos e conhecimento em um único shell web (desktop Tauri opcional).
 
-## Features
+Documentação acadêmica (teoria ↔ produto, ABNT simplificada): [`docs/entrega/Documentacao.pdf`](./docs/entrega/Documentacao.pdf) — regenerar com `bun run docs:entrega-pdf`.
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Router** - File-based routing with full type safety
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Fastify** - Fast, low-overhead web framework
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **Node.js** - Runtime environment
-- **Drizzle** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
-- **Tauri** - Build native desktop applications
-- **Turborepo** - Optimized monorepo build system
+## O que o MVP entrega
 
-## Getting Started
+| Área | O que existe hoje |
+|------|-------------------|
+| Home `/` | KPIs (pendentes, atrasadas, prioritárias) e visão do dia |
+| Tarefas `/tasks` | Grade Eisenhower, filtros Hoje/Agendadas, boards Kanban e Gantt |
+| Calendário `/calendar` | Eventos do Google Calendar |
+| Integrações `/integrations` | Conectar Trello, Calendar e Notion; BYOK Claude/ChatGPT |
+| Operador de IA | Dock/sheet (Cmd/Ctrl+K): classificar, planejar o dia, blocos de foco, comunicação, Notion |
+| Onboarding | Conectar apps, timezone, horário de trabalho e intro do operador |
+| Arquivos `/files` | Upload de PDF com extração de texto |
+| Analytics `/analytics` | Contagens básicas (sem score de horas) |
+| Auth | E-mail/senha, Google, GitHub, magic link (Resend) |
 
-First, install the dependencies:
+**Fora do MVP (melhoria futura):** Gmail. O backend tem scaffolding OAuth, mas a UI de Integrações e o onboarding **não** exibem Conectar Gmail. Notes (`/notes`) ainda é uma ponte textual para o operador.
+
+## Previews
+
+<p>
+  <img src="docs/previews/dashboard-home.png" alt="Dashboard Home com KPIs e atalho ao operador" width="720" />
+</p>
+
+<p>
+  <img src="docs/previews/onboarding-integracoes.png" alt="Onboarding: passo de integrações" width="720" />
+</p>
+
+<p>
+  <img src="docs/previews/ai-dock.png" alt="Operador de IA no dock lateral" width="720" />
+</p>
+
+<p>
+  <img src="docs/previews/tasks-kanban.png" alt="Board Kanban em Tarefas" width="480" />
+  <img src="docs/previews/tasks-gantt.png" alt="Board Gantt em Tarefas" width="480" />
+</p>
+
+Checklist de prints sugeridos para a entrega: login, onboarding, dashboard, Eisenhower/tarefas, operador com tool steps, integrações conectadas, upload de PDF, (opcional) app Tauri.
+
+## Stack
+
+| Camada | Tecnologia |
+|--------|------------|
+| Frontend | React 19, TanStack Router/Query, Tailwind 4, shadcn/ReUI |
+| Backend | Fastify, oRPC, Better Auth |
+| IA | Vercel AI SDK (`ai`, `@ai-sdk/react`) + Gemini/Claude/ChatGPT |
+| Dados | PostgreSQL, Drizzle ORM |
+| Monorepo | Turborepo, Bun |
+| Desktop | Tauri 2 (opcional) |
+
+Base inicial: [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack).
+
+## Como executar localmente
+
+Pré-requisitos: **Bun 1.3+**, PostgreSQL (Docker ou sistema) e variáveis de ambiente.
+
+1. Copie o modelo [`.env.example`](./.env.example) para `apps/server/.env` e `apps/web/.env`.
+2. Preencha pelo menos `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN` e `INTEGRATION_ENCRYPTION_KEY`. Integrações e login social pedem as chaves OAuth descritas no exemplo.
 
 ```bash
 bun install
-```
-
-## Database Setup
-
-This project uses PostgreSQL with Drizzle ORM.
-
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/server/.env` file with your PostgreSQL connection details.
-
-3. Apply the schema to your database:
-
-```bash
+bun run db:start    # Postgres (Docker ou scripts/ensure-postgres.sh no Cloud Agent)
 bun run db:push
-```
-
-Then, run the development server:
-
-```bash
 bun run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
+- Web: http://localhost:3001
+- API: http://localhost:3000
 
-## UI Customization
+Apenas um app: `bun run dev:web` ou `bun run dev:server`. Desktop: `cd apps/web && bun run desktop:dev`.
 
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
+### Redirects OAuth (resumo)
 
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
+Registre no console do provedor (valores locais):
 
-### Add more shared components
+| Fluxo | Callback |
+|-------|----------|
+| Google login + Calendar Connect | `http://localhost:3000/api/auth/callback/google` |
+| GitHub login | `http://localhost:3000/api/auth/callback/github` |
+| Notion Connect | `http://localhost:3000/api/integrations/oauth/notion/callback` |
+| Trello | `http://localhost:3001/oauth/trello` |
 
-Run this from the project root to add more primitives to the shared UI package:
+Detalhes e armadilhas (`redirect_uri_mismatch`, Power-Up hex key do Trello): ver comentários em [`.env.example`](./.env.example).
 
-```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
-```
-
-Import shared components like this:
-
-```tsx
-import { Button } from "@personal-os/ui/components/button";
-```
-
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Environment Configuration
-
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `bun run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
-
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
-
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
-
-Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
-
-## Deployment
-
-### Vercel Services
-
-- Target: web + server
-- Config: `vercel.json`
-- Link the project first: bun run deploy:setup
-- Local Vercel dev: bun run dev:vercel
-- Sync preview env: bun run env:preview
-- Sync production env: bun run env:production
-- Dry-run check (no upload): bun run deploy:check
-- Preview deploy: bun run deploy
-- Production deploy: bun run deploy:prod
-- Web requests under `/api/*` route to the server service, which serves those paths directly. Local server URLs include `/api` too.
-  Vercel Services share project environment variables, but deploys do not upload local `.env` files automatically. Link the project with `vercel link`, then run the env sync command before your first deploy (otherwise the deployment starts with no env vars), or pass one-off envs with `vercel deploy -e KEY=value`.
-  Pass Vercel CLI flags to the env sync command directly, for example: `bun run env:production --scope your-team`.
-
-For more details, see the guide on [Deploying to Vercel](https://www.better-t-stack.dev/docs/guides/vercel).
-
-## Project Structure
+## Estrutura
 
 ```
 personal-os/
 ├── apps/
-│   ├── web/         # Frontend application (React + TanStack Router)
-│   └── server/      # Backend API (Fastify, ORPC)
+│   ├── web/         # React + TanStack Router (+ Tauri)
+│   └── server/      # Fastify, oRPC, auth, AI, OAuth
 ├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
+│   ├── api/         # Routers oRPC
+│   ├── auth/        # Better Auth
+│   ├── capabilities/# Eisenhower, planning, operator tools
+│   ├── db/          # Drizzle + schema
+│   ├── integrations/# OAuth e adapters
+│   └── ui/          # shadcn/ReUI compartilhado
+└── docs/
+    ├── entrega/     # Documentacao.md → Documentacao.pdf
+    └── previews/    # Screenshots do produto
 ```
 
-## Available Scripts
+## Scripts úteis
 
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run dev:server`: Start only the server
-- `bun run check-types`: Check TypeScript types across all apps
-- `bun run db:push`: Push schema changes to database
-- `bun run db:generate`: Generate database client/types
-- `bun run db:migrate`: Run database migrations
-- `bun run db:studio`: Open database studio UI
-- `cd apps/web && bun run desktop:dev`: Start Tauri desktop app in development
-- `cd apps/web && bun run desktop:build`: Build Tauri desktop app
-- `bun run deploy:setup`: Link this repo to a Vercel project (first-time setup)
-- `bun run dev:vercel`: Run the Vercel Services dev environment locally
-- `bun run env:preview`: Sync local env files to the Vercel preview environment
-- `bun run env:production`: Sync local env files to the Vercel production environment
-- `bun run deploy`: Create a Vercel preview deployment
-- `bun run deploy:prod`: Deploy to Vercel production
-- `bun run deploy:check`: Dry-run a deploy to preview framework detection and included files without uploading
+| Comando | Função |
+|---------|--------|
+| `bun run dev` | Sobe web + server |
+| `bun run check-types` | Typecheck do monorepo |
+| `bun run db:push` / `db:studio` | Schema e Drizzle Studio |
+| `bun run docs:entrega-pdf` | Regenera `docs/entrega/Documentacao.pdf` |
+| `bun run deploy` / `deploy:prod` | Deploy Vercel (após `deploy:setup` e sync de env) |
 
-## Better Auth Schema Generation
+## Entrega acadêmica
 
-After changing auth plugins or schema options, run `bun run auth:generate` from the project root. The script runs the Better Auth CLI through `varlock run` from the owning app directory, loading the auth instance from `src/services.ts`. Review the schema changes, then use your ORM's migration workflow to apply them.
+| Entregável | Onde |
+|------------|------|
+| Parte teórica + prática (PDF) | [`docs/entrega/Documentacao.pdf`](./docs/entrega/Documentacao.pdf) |
+| README / como rodar | Este arquivo |
+| Vídeo pitch (≤4 min) | Link externo (YouTube, Loom ou Drive) — fora do repositório |
+
+Autor: João Henrique Benatti Coimbra · RA 188635 · UniFECAF · Módulo Produtividade e Gestão do Tempo.

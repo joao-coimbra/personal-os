@@ -1,4 +1,31 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": ["ultracite/biome/core", "ultracite/biome/react", "ultracite/biome/tanstack"],
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/tanstack"
+  ],
+  "files": {
+    "includes": [
+      "!packages/ui/src/components/blocks/app-shell-18",
+      "!packages/ui/src/components/blocks/ai-chat-2",
+      "!packages/ui/src/components/blocks/gantt-3",
+      "!packages/ui/src/components/blocks/kanban-board-3",
+      "!packages/ui/src/components/reui/code-block",
+      "!packages/ui/src/components/reui/gantt",
+      "!packages/ui/src/components/reui/kanban.tsx"
+    ]
+  },
+  "overrides": [
+    {
+      "includes": ["apps/web/src/features/operator/operator-chat.tsx"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noJsxPropsBind": "off"
+          }
+        }
+      }
+    }
+  ]
 }
