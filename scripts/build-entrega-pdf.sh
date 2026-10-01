@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Regenera o PDF de documentação de entrega a partir do Markdown.
+# Regenera o PDF de documentação acadêmica a partir do Markdown.
 # Uso: bash scripts/build-entrega-pdf.sh
 #      bun run docs:entrega-pdf
+# Saída: docs/entrega/Documentacao.pdf
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SRC="$ROOT/docs/entrega/PersonalOS-Documentacao-Entrega.md"
+SRC="$ROOT/docs/entrega/Documentacao.md"
 OUT_DIR="$ROOT/docs/entrega"
-HTML="$OUT_DIR/PersonalOS-Documentacao-Entrega.html"
-PDF="$OUT_DIR/PersonalOS-Documentacao-Entrega.pdf"
+HTML="$OUT_DIR/Documentacao.html"
+PDF="$OUT_DIR/Documentacao.pdf"
 CSS="$OUT_DIR/entrega-print.css"
 ARTIFACT_DIR="${ARTIFACT_DIR:-/opt/cursor/artifacts}"
 
@@ -122,12 +123,20 @@ if [[ ! -f "$PDF" ]]; then
   exit 1
 fi
 
-cp -f "$PDF" "$ARTIFACT_DIR/PersonalOS-Documentacao-Entrega.pdf"
-cp -f "$SRC" "$ARTIFACT_DIR/PersonalOS-Documentacao-Entrega.md"
+cp -f "$PDF" "$ARTIFACT_DIR/Documentacao.pdf"
+cp -f "$SRC" "$ARTIFACT_DIR/Documentacao.md"
 rm -f "$FRONT_MATTER"
 
+# Remove nomes antigos do artefato e do diretório de entrega, se existirem.
+rm -f \
+  "$OUT_DIR/PersonalOS-Documentacao-Entrega.pdf" \
+  "$OUT_DIR/PersonalOS-Documentacao-Entrega.html" \
+  "$OUT_DIR/PersonalOS-Documentacao-Entrega.md" \
+  "$ARTIFACT_DIR/PersonalOS-Documentacao-Entrega.pdf" \
+  "$ARTIFACT_DIR/PersonalOS-Documentacao-Entrega.md"
+
 echo "PDF: $PDF"
-echo "Artifact: $ARTIFACT_DIR/PersonalOS-Documentacao-Entrega.pdf"
+echo "Artifact: $ARTIFACT_DIR/Documentacao.pdf"
 wc -c "$PDF"
 pdfinfo "$PDF" 2>/dev/null || true
 pdffonts "$PDF" 2>/dev/null | head -20 || true

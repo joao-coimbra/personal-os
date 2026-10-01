@@ -6,10 +6,9 @@ ra: "188635"
 course: "Graduação Tecnológica em Inteligência Artificial e Automação Digital"
 module: "Produtividade e Gestão do Tempo"
 date: "30 de setembro de 2026"
-version: "1.3"
+version: "1.4"
 repo: "https://github.com/joao-coimbra/personal-os"
 branch: "cursor/personalos-mvp-44d9"
-pr: "https://github.com/joao-coimbra/personal-os/pull/2"
 ---
 
 <div class="sumario-page" markdown="1">
@@ -29,10 +28,9 @@ pr: "https://github.com/joao-coimbra/personal-os/pull/2"
    - 3.2 Mapeamento requisito prático e feature
    - 3.3 Fluxo principal de uso
    - 3.4 Arquitetura
-   - 3.5 Como executar localmente
-   - 3.6 Integrações
-   - 3.7 Operador de IA: tools
-   - 3.8 Navegação e shell
+   - 3.5 Integrações entregues no MVP
+   - 3.6 Operador de IA: tools
+   - 3.7 Navegação e shell
 4. Limitações e trabalho futuro
 5. Checklist da rubrica (autoavaliação)
 6. Referências
@@ -50,7 +48,7 @@ A missão proposta é montar um Sistema Operacional Pessoal (Personal Operating 
 
 O **PersonalOS** é a resposta prática a esse enunciado. É um monorepo web (com shell desktop opcional) que integra Trello, Google Calendar, Notion e um operador de IA autenticado. Na interface há dashboard, matriz de Eisenhower, time blocking com limites de carga e ferramentas de comunicação profissional.
 
-Este documento cobre a parte teórica (1,5 pts) e registra a parte prática (3,5 pts). O vídeo pitch (até 4 minutos, 2,0 pts) é entregue à parte, em YouTube, Loom ou Google Drive.
+Este documento cobre a parte teórica (1,5 pts) e registra a parte prática (3,5 pts). Instruções de execução local, variáveis de ambiente e checklist de prints ficam no `README.md` do repositório. O vídeo pitch (até 4 minutos, 2,0 pts) é entregue à parte, em YouTube, Loom ou Google Drive.
 
 </div>
 
@@ -89,7 +87,7 @@ Os pontos abaixo alinham-se ao material da disciplina (*Gestão de Tempo: Tarefa
 |--------|------------------|-------------------|
 | **Matriz de Eisenhower** | Gestão de Tempo: 4 quadrantes (Fazer, Agendar, Delegar, Eliminar) | Classificação de cards Trello na UI (`/tasks`) e tool `tasks_classify` do operador |
 | **Time blocking** | Bloquear tempo para tarefas importantes (compromissos e foco) | `planning_propose_day` e `planning_create_focus_blocks` no Google Calendar (com confirmação) |
-| **Kanban** | Visualização de fluxo (A fazer, Em andamento, Concluído) | Vista Kanban em `/tasks` (`TasksKanbanBoard`, ReUI kanban) com DnD e rating Eisenhower |
+| **Kanban** | Visualização de fluxo (A fazer, Em andamento, Concluído) | Vista Kanban em `/tasks` (`TasksKanbanBoard`) com DnD e rating Eisenhower |
 | **GTD (referência)** | Capturar, Clarificar, Organizar, Refletir, Engajar | Captura em Trello; clarificação e priorização via Eisenhower e IA; reflexão no dashboard |
 | **Pomodoro** | Ciclos 25+5 (módulo) | Não implementado como timer no MVP; citado na teoria e compatível com `focusMinutes` e `breakMinutes` das preferências |
 | **Planejamento sustentável** | Bem-estar e redução de sobrecarga | Planner respeita horário de trabalho, pausas, eventos existentes e limite de tarefas por dia |
@@ -100,19 +98,20 @@ Os pontos abaixo alinham-se ao material da disciplina (*Gestão de Tempo: Tarefa
 |------------|-------|---------------|
 | **Trello** | Fonte de tarefas | Já adotado por muitos times; OAuth Power-Up; boards, listas e cards; alinhado ao Trello Guide citado no enunciado |
 | **Google Calendar** | Compromissos e blocos de foco | Agenda real do profissional; time blocking vira eventos concretos |
-| **Notion** | Conhecimento e notas | Busca e criação via operador (P2); alinhado a Notion Guides do enunciado |
-| **Gmail (readonly)** | Contexto de comunicação (OAuth) | Separado do Calendar; escopo mínimo `gmail.readonly` |
+| **Notion** | Conhecimento e notas | Busca e criação via operador; alinhado a Notion Guides do enunciado |
 | **Operador de IA (Vercel AI SDK)** | Classificar, planejar, reescrever, resumir | Cumpre o requisito de IA para automatizar, organizar e planejar, com confirmação em ações de alto impacto |
 | **PersonalOS (este app)** | Shell, dashboard e orquestração | Une as ferramentas acima em um POS único, com autenticação e preferências |
 
-**Stack técnica:** React 19, TanStack Router/Query, Tailwind 4, shadcn/ReUI (preset Luma), Fastify, oRPC, Better Auth, PostgreSQL, Drizzle, Bun, Turborepo, Tauri 2 (workspace local), Vercel AI SDK (`ai`, `@ai-sdk/react`, Google/OpenAI/Anthropic).
+**Gmail** não faz parte do MVP entregue. Há scaffolding de OAuth no backend, mas a UI de Integrações e o onboarding **não** expõem Conectar Gmail. O uso de e-mail como contexto de comunicação fica para trabalho futuro (seção 4).
+
+**Stack técnica (alto nível):** React 19, TanStack Router/Query, Tailwind 4, shadcn/ReUI, Fastify, oRPC, Better Auth, PostgreSQL, Drizzle, Bun, Turborepo, Tauri 2 (workspace local opcional), Vercel AI SDK.
 
 ### 2.5 Como a IA apoia a organização
 
 No produto, a IA funciona como apoio à decisão (conceito de copiloto no módulo de comunicação), e não como agente autônomo sem restrições:
 
 - Classificação Eisenhower sugerida (`tasks_classify`): não altera o board em silêncio.
-- Proposta de dia (`planning_propose_day`): respeita preferências (timezone, janela 09-18, foco e pausas).
+- Proposta de dia (`planning_propose_day`): respeita preferências (timezone, janela de trabalho, foco e pausas).
 - Criação de blocos de foco somente após confirmação; a partir de 3 blocos, gera `pending_ai_action` e exige `ai.confirmAction`.
 - Comunicação: reescrita profissional, resumo para o time, notas de reunião convertidas em rascunho de tarefas.
 - Notion: busca, leitura e criação de notas via tools.
@@ -139,45 +138,48 @@ Limites éticos aplicados: o system prompt exige proposta antes de ações em ma
 PersonalOS é um POS web (com shell Tauri opcional) que:
 
 1. Autentica o usuário (Better Auth: e-mail/senha, Google, GitHub, magic link Resend).
-2. Conecta integrações via OAuth (**Conectar** / `/integrations`).
+2. Conecta integrações via OAuth em **Conectar** (`/integrations`): Trello, Google Calendar e Notion; além de chaves Claude/ChatGPT (BYOK).
 3. Agrega tarefas e eventos no dashboard em `/`.
 4. Expõe tarefas com Eisenhower, filtros e boards Kanban/Gantt em `/tasks`.
 5. Mostra agenda em `/calendar`.
-6. Oferece operador de IA (Cmd/Ctrl+K, dock/sheet lateral; rota auxiliar `/ai`).
-7. Permite upload de PDF acadêmico com extração de texto (`unpdf`) em `/files`.
+6. Oferece operador de IA (Cmd/Ctrl+K, dock/sheet lateral).
+7. Permite upload de PDF com extração de texto (`unpdf`) em `/files`.
 8. Expõe analytics básicos em `/analytics` e preferências em `/settings`.
+9. Mantém `/notes` como ponte textual para uso do Notion via operador (UI ainda stub).
 
 ### 3.2 Mapeamento requisito prático e feature
 
-Mapeamento verificado em relação ao HEAD da branch `cursor/personalos-mvp-44d9` (código em `apps/web`, `packages/capabilities`, `packages/api`).
+Mapeamento verificado em relação ao código atual da branch de entrega (apps `web`/`server`, packages `capabilities`, `api`, `integrations`).
 
 | Requisito do enunciado (prática) | Implementação no PersonalOS (código atual) |
 |----------------------------------|--------------------------------------------|
-| Organização de tarefas e prioridades | Trello via oRPC `tasks`; grade Eisenhower em `/tasks`; sidebar com seção Eisenhower; filtros `today`, `scheduled`, `completed` |
+| Organização de tarefas e prioridades | Trello via oRPC `tasks`; grade Eisenhower em `/tasks`; sidebar com seção Eisenhower; filtros `today` e `scheduled` |
 | Planejamento semanal ou mensal | `planning_propose_day` e `planning_create_focus_blocks`; visão `/calendar`; KPIs em `/` e `/analytics` |
 | Gestão de compromissos | Google Calendar (login Google sincroniza Calendar; Connect explícito também); `calendar_list_events` |
 | Pelo menos 1 técnica de produtividade | Eisenhower (`tasks_classify` e UI) e time blocking (também Kanban/Gantt em `/tasks`) |
-| Pelo menos 1 ferramenta digital | Trello (fluxo principal); Calendar; Notion (tools e Connect); Gmail readonly |
+| Pelo menos 1 ferramenta digital | Trello (fluxo principal); Calendar; Notion (tools e Connect) |
 | IA para automatizar, organizar ou planejar | `POST /api/ai` e `buildOperatorTools` em `@personal-os/capabilities` |
 | Dashboard de acompanhamento | Home `/` (`dashboard.getOverview`: pendentes, atrasadas, prioritárias, eventos) |
-| README | `README.md`, `README-ACADEMICO.md` e este documento |
+| README | `README.md` do repositório (como executar, stack, previews) e este PDF |
 
 **Rotas autenticadas (`/_app`):** `/`, `/tasks`, `/calendar`, `/notes`, `/files`, `/analytics`, `/integrations`, `/settings`.
 
 ### 3.3 Fluxo principal de uso
 
-1. **Login / cadastro** em `/login` (UI ReUI auth-16).
-2. **Onboarding** (`/onboarding`): conectar Trello e Calendar (ou pular), timezone e horário de trabalho, intro do operador. Após OAuth, o passo de integrações é restaurado (`?step=integrations`).
+1. **Login / cadastro** em `/login`.
+2. **Onboarding** (`/onboarding`): conectar Trello, Calendar e Notion (ou pular), timezone e horário de trabalho, intro do operador. Após OAuth, o passo de integrações é restaurado.
 3. **Home `/`:** saudação, KPIs, painel Eisenhower, atalho ao operador.
-4. **Tarefas `/tasks`:** grade por quadrante (`do`, `schedule`, `delegate`, `eliminate`); boards Kanban (`TasksKanbanBoard`) e Gantt (`TasksGanttBoard`); nav com filtros Hoje, Agendadas e Completas.
+4. **Tarefas `/tasks`:** grade por quadrante (`do`, `schedule`, `delegate`, `eliminate`); boards Kanban e Gantt; nav com filtros Hoje e Agendadas.
 5. **Calendário `/calendar`:** eventos Google.
-6. **Operador:** “Classifique com Eisenhower”, “Proponha meu dia 09-18”, “Crie blocos após eu confirmar”.
+6. **Operador:** classificar com Eisenhower, propor o dia, criar blocos após confirmação.
 7. **Arquivos `/files`:** PDF para texto; no desktop Tauri, pasta autorizada.
-8. **Integrações `/integrations`:** status conectado/desconectado; Claude/ChatGPT via API key; limpar preferência de modelo para roteamento Gemini.
+8. **Integrações `/integrations`:** status Trello/Calendar/Notion; Claude/ChatGPT via API key; limpar preferência de modelo para roteamento Gemini.
 9. **Notes `/notes`:** ponte para uso do Notion via operador (UI stub).
 10. **Analytics `/analytics`:** pendentes, atrasadas e prioritárias (sem score de horas).
 
 ### 3.4 Arquitetura
+
+Visão de alto nível (sem procedimento de instalação):
 
 ```
 apps/web (React + TanStack Router) ──oRPC──► apps/server (Fastify)
@@ -186,56 +188,31 @@ apps/web (React + TanStack Router) ──oRPC──► apps/server (Fastify)
          │                                      ├── /api/rpc  (oRPC routers)
          └──────── POST /api/ai ───────────────►├── /api/ai   (Vercel AI SDK + tools)
                                                 ├── /api/files/extract-pdf
-                                                └── OAuth callbacks (Gmail, Notion, …)
+                                                └── OAuth (Trello, Calendar, Notion)
 
 packages/
   api            routers: dashboard, tasks, integrations, preferences, ai, files
   capabilities   Eisenhower, planning, services, operator tools
-  integrations   OAuth + Trello/Calendar/Notion/Gmail adapters + tokens
+  integrations   OAuth + adapters Trello/Calendar/Notion + tokens
   auth / db / ui Better Auth, Drizzle schema, shadcn/ReUI
 ```
 
 **Confirmação de alto impacto:** criação de 3 ou mais blocos de calendário persiste `pending_ai_action`; o cliente confirma via oRPC `ai.confirmAction`.
 
-**Roteamento de modelos:** preferência do usuário (Anthropic/OpenAI conectados), demais chaves, depois Gemini (`gemini-3-flash-preview`, fallback `gemini-3.8-flash`).
+**Roteamento de modelos:** preferência do usuário (Anthropic/OpenAI conectados), demais chaves, depois Gemini de fallback via env.
 
-### 3.5 Como executar localmente
-
-Pré-requisitos: Bun 1.3+, Docker (Postgres), variáveis em `.env.example` copiadas para `apps/server/.env` e `apps/web/.env`.
-
-```bash
-bun install
-bun run db:start    # Postgres via Docker
-bun run db:push
-bun run dev
-```
-
-- Web: http://localhost:3001
-- API: http://localhost:3000
-
-Redirects OAuth relevantes (resumo):
-
-| Fluxo | Callback |
-|-------|----------|
-| Google login + Calendar Connect | `{SERVER}/api/auth/callback/google` |
-| Gmail Connect | `{SERVER}/api/integrations/oauth/gmail/callback` |
-| Notion | `{SERVER}/api/integrations/oauth/notion/callback` |
-| Trello | `{WEB}/oauth/trello` |
-
-Detalhes e checklist de prints: `README-ACADEMICO.md`.
-
-### 3.6 Integrações
+### 3.5 Integrações entregues no MVP
 
 | Provedor | Estado no MVP | Observação |
 |----------|---------------|------------|
-| Trello | Implementado | Power-Up hex key; rejeição de client IDs Atlassian inválidos |
-| Google Calendar | Implementado | Mesmo `redirect_uri` Better Auth no Connect |
-| Gmail | Implementado (readonly) | Conexão explícita separada |
-| Notion | Implementado (tools e Connect) | UI `/notes` ainda é ponte para o operador |
-| Anthropic / OpenAI | Implementado (BYOK) | Preferência e failover para Gemini |
-| Gemini | Implementado (env) | Fallback padrão do operador |
+| Trello | Entregue | Power-Up; boards, listas e cards |
+| Google Calendar | Entregue | Login Google sincroniza Calendar; Connect explícito disponível |
+| Notion | Entregue (tools + Connect) | UI `/notes` ainda é ponte para o operador |
+| Anthropic / OpenAI | Entregue (BYOK) | Preferência e failover para Gemini |
+| Gemini | Entregue (env) | Fallback padrão do operador |
+| Gmail | Não entregue no MVP | UI oculta; previsto como melhoria futura |
 
-### 3.7 Operador de IA: tools
+### 3.6 Operador de IA: tools
 
 Tools exportadas por `buildOperatorTools` em `packages/capabilities/src/tools.ts`:
 
@@ -248,9 +225,9 @@ Tools exportadas por `buildOperatorTools` em `packages/capabilities/src/tools.ts
 | `knowledge_search` / `knowledge_read_page` / `knowledge_create_note` | Notion |
 | `comm_rewrite_message` / `comm_summarize_for_team` / `comm_meeting_notes_to_tasks` | Comunicação |
 
-### 3.8 Navegação e shell
+### 3.7 Navegação e shell
 
-AppShell (ReUI app-shell-18): Home `/`, Tasks (submenu com filtros), Calendar, Notes, Files, Analytics, Integrations, Settings; menu de avatar; operador redimensionável; command palette; seção Eisenhower na sidebar.
+AppShell: Home `/`, Tasks (submenu com filtros), Calendar, Notes, Files, Analytics, Integrations, Settings; menu de avatar; operador redimensionável (dock/sheet); command palette; seção Eisenhower na sidebar.
 
 </div>
 
@@ -258,19 +235,20 @@ AppShell (ReUI app-shell-18): Home `/`, Tasks (submenu com filtros), Calendar, N
 
 ## 4. Limitações e trabalho futuro
 
-Esta seção separa o que já está pronto do que ainda é parcial ou em evolução. Não se listam recursos que o código não implementa.
+Esta seção separa o que já está pronto do que ainda é parcial ou em evolução. Não se listam recursos que o código não implementa como se fossem entregues.
 
 | Item | Status |
 |------|--------|
+| **Gmail (readonly / triagem)** | Melhoria futura: OAuth existe no backend, mas UI de Integrações e onboarding não expõem Conectar Gmail no MVP |
 | Timer Pomodoro dedicado | Não implementado |
-| MCP server HTTP externo (P2 do plano) | Não entregue como produto |
+| MCP server HTTP externo | Não entregue como produto |
 | UI rica de Notion em `/notes` | Stub: orienta uso via operador |
 | Analytics | KPIs básicos (`pendingCount`, `overdueCount`, `priorityTasks`); sem séries históricas avançadas |
 | Filtro “Completas” | `listTasks` retorna apenas cards abertos; filtro `completed` resulta em lista vazia |
-| Boards Gantt/Kanban | Presentes em `/tasks` (`TasksKanbanBoard`, `TasksGanttBoard`); refinamentos de sync e drag ainda em evolução |
-| Operador multi-agente / AI chat agents | Em evolução; não tratar como feature estável de entrega |
+| Boards Gantt/Kanban | Presentes em `/tasks`; refinamentos de sync e drag ainda em evolução |
+| Operador multi-agente | Em evolução; não tratar como feature estável de entrega |
 | Vídeo pitch | Entregável separado (fora deste PDF) |
-| Prints oficiais no README | Checklist em `README-ACADEMICO.md`; anexar evidências antes do envio final |
+| Prints no README | Checklist e pasta `docs/previews/` no repositório |
 
 </div>
 
@@ -296,7 +274,7 @@ Esta seção separa o que já está pronto do que ainda é parcial ou em evoluç
 - [x] Ferramenta digital (Trello, Calendar e Notion)
 - [x] Uso de IA (operador, tools e confirmação)
 - [x] Dashboard (`/`)
-- [x] README (`README.md`, `README-ACADEMICO.md`, este PDF)
+- [x] README (`README.md` e este PDF)
 
 ### 5.3 Vídeo (2,0), fora deste PDF
 
@@ -304,7 +282,7 @@ Esta seção separa o que já está pronto do que ainda é parcial ou em evoluç
 
 ### 5.4 Prints sugeridos
 
-Ver seção 6 de `README-ACADEMICO.md` (login, onboarding, dashboard, Eisenhower, operador, integrações, PDF, Tauri opcional).
+Ver `README.md` (seção Previews) e `docs/previews/`.
 
 </div>
 
@@ -363,21 +341,16 @@ BETTER AUTH. Documentação. Disponível em: https://www.better-auth.com. Acesso
 | RA | 188635 |
 | Curso | Graduação Tecnológica em Inteligência Artificial e Automação Digital |
 | Módulo | Produtividade e Gestão do Tempo |
-| Fonte regenerável | `docs/entrega/PersonalOS-Documentacao-Entrega.md` |
+| Fonte regenerável | `docs/entrega/Documentacao.md` |
 | Script | `scripts/build-entrega-pdf.sh` |
-| PDF gerado | `docs/entrega/PersonalOS-Documentacao-Entrega.pdf` |
-| Artefato cloud | `/opt/cursor/artifacts/PersonalOS-Documentacao-Entrega.pdf` |
+| PDF gerado | `docs/entrega/Documentacao.pdf` |
+| Artefato cloud | `/opt/cursor/artifacts/Documentacao.pdf` |
 | Data | 30 de setembro de 2026 |
-| Prazo de referência | 30/09/2026, 23:00 (America/Sao_Paulo) |
 | Branch | `cursor/personalos-mvp-44d9` |
-| Versão do documento | 1.3 |
+| Versão do documento | 1.4 |
 
-Para regenerar após mudanças no produto:
+Para regenerar após mudanças no produto: `bun run docs:entrega-pdf` (ou `bash scripts/build-entrega-pdf.sh`).
 
-```bash
-bash scripts/build-entrega-pdf.sh
-```
-
-Atualizar a seção 3.2 se rotas, tools ou boards evoluirem antes do envio final.
+Atualizar a seção 3.2 se rotas, tools ou boards evoluirem antes do envio final. Detalhes de execução local permanecem apenas no `README.md`.
 
 </div>
