@@ -120,7 +120,10 @@ async function persistOAuthTokens(
 
 export function registerOAuthRoutes(fastify: FastifyInstance) {
   // Log Better Auth Google authorize redirects (login + linkSocial).
-  fastify.addHook("onSend", (request, _reply, payload) => {
+  // Fastify 5 treats a sync 3-arg onSend as callback-style and waits forever
+  // for `done` — that hung every API response and left the web splash pending.
+  // Always invoke `done` (4th arg) so responses complete.
+  fastify.addHook("onSend", (request, _reply, payload, done) => {
     if (
       request.method !== "POST" ||
       !(
@@ -128,7 +131,8 @@ export function registerOAuthRoutes(fastify: FastifyInstance) {
         request.url.startsWith("/api/auth/link-social")
       )
     ) {
-      return payload;
+      done(null, payload);
+      return;
     }
     try {
       const body =
@@ -137,7 +141,8 @@ export function registerOAuthRoutes(fastify: FastifyInstance) {
           : null;
       const authorizeUrl = body?.url;
       if (!authorizeUrl?.includes(GOOGLE_AUTHORIZE_HOST)) {
-        return payload;
+        done(null, payload);
+        return;
       }
       const parsed = new URL(authorizeUrl);
       request.log.info(
@@ -152,7 +157,7 @@ export function registerOAuthRoutes(fastify: FastifyInstance) {
     } catch {
       // ignore non-JSON payloads
     }
-    return payload;
+    done(null, payload);
   });
 
   fastify.get(
