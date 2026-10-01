@@ -17,6 +17,8 @@ function capabilityEnv(context: {
   return {
     db: context.db,
     encryptionKey,
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
     trelloApiKey: process.env.TRELLO_API_KEY,
     userId: context.session.user.id,
   };
@@ -24,12 +26,11 @@ function capabilityEnv(context: {
 
 export const dashboardRouter = {
   getOverview: protectedProcedure.handler(async ({ context }) => {
-    const prefsRows = await context.db
+    const [prefs] = await context.db
       .select()
       .from(userPreference)
       .where(eq(userPreference.userId, context.session.user.id))
       .limit(1);
-    const prefs = prefsRows[0];
     const env = capabilityEnv(context);
 
     let tasks: Awaited<ReturnType<typeof listTasks>> = [];

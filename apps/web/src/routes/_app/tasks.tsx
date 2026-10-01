@@ -145,7 +145,7 @@ function TasksPage() {
   const title = filter ? FILTER_TITLE[filter] : "Tasks";
   const subtitle = filter
     ? "Filtro da barra lateral"
-    : "Quadro Kanban e Gantt do playbook — Trello + Eisenhower";
+    : "Quadro Kanban e Gantt — Trello + Eisenhower";
   const showQuadrants = filter !== "completed";
   const showBoards = !filter;
 

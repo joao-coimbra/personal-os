@@ -48,6 +48,7 @@ export async function saveIntegrationToken(
     scopes?: string;
     externalAccountLabel?: string;
     encryptionKey: string;
+    tokenExpiresAt?: Date;
   }
 ) {
   const existingRows = await db
@@ -70,6 +71,7 @@ export async function saveIntegrationToken(
       : null,
     scopes: input.scopes,
     status: "connected" as const,
+    tokenExpiresAt: input.tokenExpiresAt ?? null,
     updatedAt: new Date(),
   };
 

@@ -15,6 +15,8 @@ function capabilityEnv(context: {
   return {
     db: context.db,
     encryptionKey: process.env.INTEGRATION_ENCRYPTION_KEY ?? "",
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
     trelloApiKey: process.env.TRELLO_API_KEY,
     userId: context.session.user.id,
   };

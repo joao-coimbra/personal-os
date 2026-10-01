@@ -6,6 +6,7 @@ import { aiRouter } from "./ai";
 import { dashboardRouter } from "./dashboard";
 import { filesRouter } from "./files";
 import { integrationsRouter } from "./integrations";
+import { notesRouter } from "./notes";
 import { preferencesRouter } from "./preferences";
 import { tasksRouter } from "./tasks";
 
@@ -15,6 +16,7 @@ export const appRouter = {
   files: filesRouter,
   healthCheck: publicProcedure.handler(() => "OK"),
   integrations: integrationsRouter,
+  notes: notesRouter,
   preferences: preferencesRouter,
   privateData: protectedProcedure.handler(({ context }) => ({
     message: "This is private",

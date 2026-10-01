@@ -30,7 +30,7 @@ export async function trelloFetch<T>(
 }
 
 export async function listMemberBoards(token: string, apiKey: string) {
-  return trelloFetch<Array<{ id: string; name: string }>>(
+  return await trelloFetch<Array<{ id: string; name: string }>>(
     "/members/me/boards",
     token,
     apiKey,
@@ -79,6 +79,48 @@ export async function listBoardLists(
     .toSorted((a, b) => a.pos - b.pos);
 }
 
+export async function createBoard(
+  token: string,
+  apiKey: string,
+  input: { name: string; desc?: string; defaultLists?: boolean }
+) {
+  const params = new URLSearchParams({
+    defaultLists: String(input.defaultLists ?? false),
+    name: input.name,
+  });
+  if (input.desc) {
+    params.set("desc", input.desc);
+  }
+  return await trelloFetch<{ id: string; name: string; shortUrl?: string }>(
+    `/boards/?${params.toString()}`,
+    token,
+    apiKey,
+    { method: "POST" }
+  );
+}
+
+export async function createList(
+  token: string,
+  apiKey: string,
+  input: { idBoard: string; name: string; pos?: number | string }
+) {
+  const params = new URLSearchParams({
+    idBoard: input.idBoard,
+    name: input.name,
+  });
+  if (input.pos !== undefined) {
+    params.set("pos", String(input.pos));
+  }
+  return await trelloFetch<TrelloList>(
+    `/lists?${params.toString()}`,
+    token,
+    apiKey,
+    {
+      method: "POST",
+    }
+  );
+}
+
 export async function createCard(
   token: string,
   apiKey: string,
@@ -94,9 +136,14 @@ export async function createCard(
   if (input.due) {
     params.set("due", input.due);
   }
-  return trelloFetch<TrelloCard>(`/cards?${params.toString()}`, token, apiKey, {
-    method: "POST",
-  });
+  return await trelloFetch<TrelloCard>(
+    `/cards?${params.toString()}`,
+    token,
+    apiKey,
+    {
+      method: "POST",
+    }
+  );
 }
 
 export async function updateCard(
@@ -127,7 +174,7 @@ export async function updateCard(
   if (input.idList) {
     params.set("idList", input.idList);
   }
-  return trelloFetch<TrelloCard>(
+  return await trelloFetch<TrelloCard>(
     `/cards/${cardId}?${params.toString()}`,
     token,
     apiKey,

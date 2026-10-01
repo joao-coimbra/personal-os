@@ -86,7 +86,12 @@ export function TasksBoards({
       </TabsContent>
 
       <TabsContent className="mt-0" value="gantt">
-        <TasksGanttBoard />
+        <TasksGanttBoard
+          error={tasks.error as Error | null}
+          lists={lists.data}
+          loading={tasks.isLoading || lists.isLoading}
+          tasks={tasks.data ?? []}
+        />
       </TabsContent>
     </Tabs>
   );

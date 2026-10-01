@@ -43,7 +43,7 @@ export async function notionCreatePage(
   accessToken: string,
   input: { parentDatabaseId?: string; title: string; content?: string }
 ) {
-  const body = input.parentDatabaseId
+  const body: Record<string, unknown> = input.parentDatabaseId
     ? {
         parent: { database_id: input.parentDatabaseId },
         properties: {
@@ -56,6 +56,18 @@ export async function notionCreatePage(
           title: { title: [{ text: { content: input.title } }] },
         },
       };
+
+  if (input.content) {
+    body.children = [
+      {
+        object: "block",
+        paragraph: {
+          rich_text: [{ text: { content: input.content }, type: "text" }],
+        },
+        type: "paragraph",
+      },
+    ];
+  }
 
   const response = await fetch("https://api.notion.com/v1/pages", {
     body: JSON.stringify(body),

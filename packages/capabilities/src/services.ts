@@ -14,12 +14,15 @@ import {
   notionSearch,
   updateCard,
 } from "@personal-os/integrations";
+import { getValidGoogleCalendarToken } from "@personal-os/integrations/google-refresh";
 import { classifyEisenhower, quadrantLabel } from "./eisenhower";
 import { planDay } from "./planning";
 
 export interface CapabilityEnv {
   db: Database;
   encryptionKey: string;
+  googleClientId?: string;
+  googleClientSecret?: string;
   trelloApiKey?: string;
   userId: string;
 }
@@ -63,7 +66,10 @@ export async function listTasks(
   let targetBoardId = boardId;
   if (!targetBoardId) {
     const boards = await listMemberBoards(token, env.trelloApiKey);
-    targetBoardId = boards[0]?.id;
+    const seedBoard = boards.find((board) =>
+      board.name.includes("[PersonalOS Seed]")
+    );
+    targetBoardId = seedBoard?.id ?? boards[0]?.id;
   }
   if (!targetBoardId) {
     return [];
@@ -108,12 +114,47 @@ export async function classifyTasks(env: CapabilityEnv) {
   }));
 }
 
+async function requireGoogleCalendarToken(env: CapabilityEnv): Promise<string> {
+  const token = await getValidGoogleCalendarToken(
+    env.db,
+    env.userId,
+    env.encryptionKey,
+    {
+      clientId: env.googleClientId,
+      clientSecret: env.googleClientSecret,
+      forceRefresh: false,
+    }
+  );
+  if (!token) {
+    throw new Error("Connect google_calendar in Integrations first.");
+  }
+  return token;
+}
+
 export async function listCalendarEvents(
   env: CapabilityEnv,
   input: { timeMin: string; timeMax: string }
 ) {
-  const token = await requireToken(env, "google_calendar");
+  const token = await requireGoogleCalendarToken(env);
   return listEvents(token, input);
+}
+
+export async function createFocusBlocks(
+  env: CapabilityEnv,
+  blocks: Array<{ end: string; start: string; summary: string }>
+) {
+  const token = await requireGoogleCalendarToken(env);
+  const created: Awaited<ReturnType<typeof createEvent>>[] = await Promise.all(
+    blocks.map((block) =>
+      createEvent(token, {
+        description: "PersonalOS focus block",
+        end: block.end,
+        start: block.start,
+        summary: block.summary,
+      })
+    )
+  );
+  return created;
 }
 
 export async function proposeDayPlan(
@@ -157,25 +198,6 @@ export async function proposeDayPlan(
 }
 
 const HIGH_IMPACT_BLOCK_THRESHOLD = 3;
-
-export async function createFocusBlocks(
-  env: CapabilityEnv,
-  blocks: Array<{ end: string; start: string; summary: string }>
-) {
-  const token = await requireToken(env, "google_calendar");
-  const created = [];
-  for (const block of blocks) {
-    created.push(
-      await createEvent(token, {
-        description: "PersonalOS focus block",
-        end: block.end,
-        start: block.start,
-        summary: block.summary,
-      })
-    );
-  }
-  return created;
-}
 
 export async function createFocusBlocksWithPolicy(
   env: CapabilityEnv,
@@ -225,7 +247,10 @@ async function resolveBoardId(
     return undefined;
   }
   const boards = await listMemberBoards(token, env.trelloApiKey);
-  return boards[0]?.id;
+  const seedBoard = boards.find((board) =>
+    board.name.includes("[PersonalOS Seed]")
+  );
+  return seedBoard?.id ?? boards[0]?.id;
 }
 
 export async function listTaskLists(env: CapabilityEnv, boardId?: string) {
@@ -258,6 +283,43 @@ export async function searchKnowledge(env: CapabilityEnv, query: string) {
   return notionSearch(token, query);
 }
 
+function notionPageTitle(page: {
+  properties?: Record<string, unknown>;
+}): string {
+  const props = page.properties ?? {};
+  for (const value of Object.values(props)) {
+    if (!value || typeof value !== "object") {
+      continue;
+    }
+    const prop = value as {
+      type?: string;
+      title?: Array<{ plain_text?: string }>;
+    };
+    if (prop.type === "title" && Array.isArray(prop.title)) {
+      const text = prop.title
+        .map((part) => part.plain_text ?? "")
+        .join("")
+        .trim();
+      if (text) {
+        return text;
+      }
+    }
+  }
+  return "Untitled";
+}
+
+export async function listKnowledgeNotes(
+  env: CapabilityEnv,
+  query = ""
+): Promise<Array<{ id: string; title: string; url?: string }>> {
+  const pages = await searchKnowledge(env, query);
+  return pages.map((page) => ({
+    id: page.id,
+    title: notionPageTitle(page),
+    url: page.url,
+  }));
+}
+
 export async function readKnowledgePage(env: CapabilityEnv, pageId: string) {
   const token = await requireToken(env, "notion");
   return notionGetPage(token, pageId);
@@ -265,10 +327,14 @@ export async function readKnowledgePage(env: CapabilityEnv, pageId: string) {
 
 export async function createKnowledgeNote(
   env: CapabilityEnv,
-  input: { title: string; parentDatabaseId?: string }
+  input: { title: string; parentDatabaseId?: string; content?: string }
 ) {
   const token = await requireToken(env, "notion");
   return notionCreatePage(token, input);
 }
 
-export { updateCard as updateTrelloCard };
+export async function updateTrelloCard(
+  ...args: Parameters<typeof updateCard>
+): Promise<Awaited<ReturnType<typeof updateCard>>> {
+  return await updateCard(...args);
+}
