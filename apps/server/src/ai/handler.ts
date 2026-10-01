@@ -37,7 +37,7 @@ const FAILOVER_ERROR_PATTERN =
   /invalid.*api.?key|unauthorized|401|403|insufficient.?quota|credit.?balance|billing|quota|429|no credits|model .+ is no longer available|not found for API version|NOT_FOUND|permission.?denied|high demand|UNAVAILABLE|No output generated|RESOURCE_EXHAUSTED/i;
 
 const QUOTA_ERROR_PATTERN =
-  /insufficient.?quota|credit.?balance|no credits|billing|exceeded your current quota|rate.?limit|429/i;
+  /insufficient.?quota|credit.?balance|no credits|billing|exceeded your current quota|rate.?limit|429|RESOURCE_EXHAUSTED|quota.?exhausted|cota do modelo/i;
 
 const INVALID_KEY_PATTERN = /invalid.*api.?key|unauthorized|401|403/i;
 

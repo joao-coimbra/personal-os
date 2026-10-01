@@ -9,16 +9,18 @@ import { and, eq, inArray } from "drizzle-orm";
 const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 const OPENAI_MODEL = "gpt-5.4";
 /**
- * Gemini Flash fallbacks. Prefer lite/latest aliases — gemini-3-flash-preview
- * and gemini-3.8-flash frequently hit free-tier 429 / high-demand 503 mid
- * multi-step (after tools), which used to abort the operator stream.
+ * Gemini Flash fallbacks for the env GOOGLE_GENERATIVE_AI_API_KEY.
+ * Prefer free-tier-friendly lite aliases first — gemini-flash-latest /
+ * gemini-3-flash-preview / gemini-3.8-flash often share a tight free quota
+ * and return 429 while lite still succeeds.
  */
 const GOOGLE_MODEL = "gemini-flash-lite-latest";
 const GOOGLE_MODEL_FALLBACKS = [
   "gemini-flash-lite-latest",
+  "gemini-3.5-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.1-flash-lite",
   "gemini-flash-latest",
-  "gemini-3-flash-preview",
-  "gemini-3.8-flash",
 ] as const;
 
 export type AiModelProvider = "anthropic" | "openai";
@@ -123,8 +125,15 @@ function googleFallback(modelId: string = GOOGLE_MODEL): ResolvedOperatorModel {
   };
 }
 
+function isGooglePreferred(preferred: string | null | undefined): boolean {
+  // UI "Gemini" clears preferred to null; also accept explicit "google".
+  return !preferred || preferred === "google";
+}
+
 /**
- * Ordered candidates: preferred connected key → other connected keys → Gemini env.
+ * Ordered candidates:
+ * - Gemini selected / no preference → env Gemini first, then connected keys
+ * - Preferred openai/anthropic → that key → other connected keys → Gemini env
  */
 export async function resolveOperatorModelCandidates(input: {
   db: Database;
@@ -146,7 +155,14 @@ export async function resolveOperatorModelCandidates(input: {
   const connected = new Set(
     connectedRows.map((row) => row.provider as AiModelProvider)
   );
-  const order = buildProviderOrder(input.preferredAiProvider, connected);
+  // When Gemini is selected, still resolve connected keys as last resort —
+  // but never try them before env Gemini (they are often quota-exhausted).
+  const order = buildProviderOrder(
+    isGooglePreferred(input.preferredAiProvider)
+      ? null
+      : input.preferredAiProvider,
+    connected
+  );
 
   const resolvedList = await Promise.all(
     order.map((provider) =>
@@ -154,16 +170,22 @@ export async function resolveOperatorModelCandidates(input: {
     )
   );
 
-  const candidates: ResolvedOperatorModel[] = [];
+  const userKeyCandidates: ResolvedOperatorModel[] = [];
   for (const resolved of resolvedList) {
     if (resolved) {
-      candidates.push(resolved);
+      userKeyCandidates.push(resolved);
     }
   }
-  for (const modelId of GOOGLE_MODEL_FALLBACKS) {
-    candidates.push(googleFallback(modelId));
+
+  const googleCandidates = GOOGLE_MODEL_FALLBACKS.map((modelId) =>
+    googleFallback(modelId)
+  );
+
+  // Gemini UI selection must not burn exhausted OpenAI/Anthropic keys first.
+  if (isGooglePreferred(input.preferredAiProvider)) {
+    return [...googleCandidates, ...userKeyCandidates];
   }
-  return candidates;
+  return [...userKeyCandidates, ...googleCandidates];
 }
 
 export async function resolveOperatorModel(input: {

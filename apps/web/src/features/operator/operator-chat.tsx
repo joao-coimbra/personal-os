@@ -113,6 +113,22 @@ function toChatRecords(messages: UIMessage[]): ChatMessageRecord[] {
   return records;
 }
 
+function unwrapErrorPayload(raw: string): string {
+  const trimmed = raw.trim();
+  if (!(trimmed.startsWith("{") && trimmed.includes('"error"'))) {
+    return raw;
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as { error?: unknown };
+    if (typeof parsed.error === "string" && parsed.error.trim()) {
+      return parsed.error.trim();
+    }
+  } catch {
+    // Keep the original string when the body is not JSON.
+  }
+  return raw;
+}
+
 function resolveChatErrorMessage(error: unknown): string | null {
   let raw: string | null = null;
   if (error instanceof Error) {
@@ -123,6 +139,7 @@ function resolveChatErrorMessage(error: unknown): string | null {
   if (!raw) {
     return null;
   }
+  raw = unwrapErrorPayload(raw);
   if (NETWORK_ERROR_RE.test(raw)) {
     return "Falha de conexão com o operador. A API pode ter caído no meio da resposta (às vezes após consultar Calendar/Trello). Tente de novo — se o Calendar estiver em 403, o operador deve avisar e continuar com notas/tarefas.";
   }
