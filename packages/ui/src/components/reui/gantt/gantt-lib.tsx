@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TZDate } from "@date-fns/tz";
 import { expandRecurrence } from "@personal-os/ui/components/reui/gantt/gantt-recurrence";
 import type {

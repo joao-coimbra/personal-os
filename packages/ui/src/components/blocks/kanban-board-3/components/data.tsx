@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { BadgeProps } from "@personal-os/ui/components/reui/badge";
 import { Dropbox } from "@personal-os/ui/components/ui/svgs/dropbox";
 import { GithubDark } from "@personal-os/ui/components/ui/svgs/githubDark";

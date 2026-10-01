@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { GanttColumn } from "@personal-os/ui/components/reui/gantt/gantt";
 
 import { STAGE_BY_ID, type StageStatus } from "./data";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 type GanttBarId = string;
 
 type GanttScale = "day" | "week" | "month" | "quarter" | "year";

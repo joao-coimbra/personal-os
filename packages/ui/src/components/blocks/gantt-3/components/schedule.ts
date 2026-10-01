@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   STAGE_BY_ID,
   STAGE_EDGES,

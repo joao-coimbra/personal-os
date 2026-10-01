@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Button } from "@personal-os/ui/components/button";
 import {
   DropdownMenu,

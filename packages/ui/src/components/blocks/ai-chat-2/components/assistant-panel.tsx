@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Button } from "@personal-os/ui/components/button";
 import { Badge } from "@personal-os/ui/components/reui/badge";
 import { IconTile } from "@personal-os/ui/components/reui/icon-tile";

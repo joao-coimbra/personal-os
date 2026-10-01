@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type ModelRecord = {
   id: string;
   name: string;

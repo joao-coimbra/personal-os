@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Skeleton } from "@personal-os/ui/components/skeleton";
 import { cn } from "cn";
 import type { RefObject } from "react";

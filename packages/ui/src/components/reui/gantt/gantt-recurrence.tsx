@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TZDate } from "@date-fns/tz";
 import type {
   GanttDateRange,

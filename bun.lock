@@ -215,6 +215,7 @@
       "devDependencies": {
         "@personal-os/config": "workspace:*",
         "@tailwindcss/postcss": "^4.3.3",
+        "@types/node": "catalog:",
         "@types/react": "catalog:",
         "@types/react-dom": "catalog:",
         "tailwindcss": "catalog:",

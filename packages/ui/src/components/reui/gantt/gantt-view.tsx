@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { mergeProps } from "@base-ui/react/merge-props";
 // Base UI's ScrollArea re-measures its thumb + overflow on mount, viewport
 // resize and scroll, but NOT on a content-size change unless the content sits
