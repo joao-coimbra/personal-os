@@ -51,7 +51,9 @@ export function TasksBoards({
   });
 
   const handleMoveToList = useCallback(
-    (input: { cardId: string; idList: string }) => move.mutateAsync(input),
+    async (input: { cardId: string; idList: string }) => {
+      await move.mutateAsync(input);
+    },
     [move]
   );
 

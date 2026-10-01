@@ -101,13 +101,13 @@ function BoardScrollArea({ children }: { children: ReactNode }) {
 
 function TaskCard({
   isOverlay,
-  onSelect,
+  onTaskSelect,
   selected,
   task,
   ...props
 }: {
   isOverlay?: boolean;
-  onSelect?: (id: string) => void;
+  onTaskSelect?: (id: string) => void;
   selected?: boolean;
   task: TaskBoardItem;
 } & Omit<ComponentProps<typeof KanbanItem>, "value" | "children">) {
@@ -178,7 +178,11 @@ function TaskCard({
   );
 
   return (
-    <KanbanItem onClick={() => onSelect?.(task.id)} value={task.id} {...props}>
+    <KanbanItem
+      onClick={() => onTaskSelect?.(task.id)}
+      value={task.id}
+      {...props}
+    >
       {isOverlay ? (
         card
       ) : (
@@ -191,17 +195,20 @@ function TaskCard({
 function StageColumn({
   column,
   isOverlay,
-  onSelect,
+  onTaskSelect,
   selectedId,
   tasks,
   ...props
 }: {
   column: ColumnModel;
   isOverlay?: boolean;
-  onSelect?: (id: string) => void;
+  onTaskSelect?: (id: string) => void;
   selectedId?: string | null;
   tasks: TaskBoardItem[];
-} & Omit<ComponentProps<typeof KanbanColumn>, "value" | "children">) {
+} & Omit<
+  ComponentProps<typeof KanbanColumn>,
+  "value" | "children" | "onSelect"
+>) {
   return (
     <KanbanColumn
       className="w-[calc(100vw-4rem)] max-w-[18.5rem] shrink-0 sm:w-[18.5rem]"
@@ -256,7 +263,7 @@ function StageColumn({
           {tasks.map((task) => (
             <TaskCard
               key={task.id}
-              onSelect={onSelect}
+              onTaskSelect={onTaskSelect}
               selected={selectedId === task.id}
               task={task}
             />
@@ -320,7 +327,7 @@ export function TasksKanbanBoard({
     cardId: string;
     idList: string;
   }) => Promise<void> | void;
-  onSelect?: (id: string | null) => void;
+  onSelect?: (id: string) => void;
   selectedId?: string | null;
   tasks: TaskBoardItem[];
 }) {
@@ -498,7 +505,7 @@ export function TasksKanbanBoard({
                   <StageColumn
                     column={column}
                     key={columnId}
-                    onSelect={onSelect}
+                    onTaskSelect={onSelect}
                     selectedId={selectedId}
                     tasks={columnTasks}
                   />
