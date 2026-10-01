@@ -6,7 +6,7 @@ ra: "188635"
 course: "Graduação Tecnológica em Inteligência Artificial e Automação Digital"
 module: "Produtividade e Gestão do Tempo"
 date: "30 de setembro de 2026"
-version: "1.2"
+version: "1.3"
 repo: "https://github.com/joao-coimbra/personal-os"
 branch: "cursor/personalos-mvp-44d9"
 pr: "https://github.com/joao-coimbra/personal-os/pull/2"
@@ -27,7 +27,7 @@ pr: "https://github.com/joao-coimbra/personal-os/pull/2"
 3. Parte prática: o sistema PersonalOS
    - 3.1 Visão geral
    - 3.2 Mapeamento requisito prático e feature
-   - 3.3 Fluxo de uso (golden path)
+   - 3.3 Fluxo principal de uso
    - 3.4 Arquitetura
    - 3.5 Como executar localmente
    - 3.6 Integrações
@@ -44,13 +44,13 @@ pr: "https://github.com/joao-coimbra/personal-os/pull/2"
 
 ## 1. Introdução e missão do trabalho
 
-O enunciado da disciplina destaca um desafio recorrente entre profissionais de tecnologia: não a falta de conhecimento técnico, mas a dificuldade em organizar demandas, priorizar atividades, comunicar-se com eficiência e manter equilíbrio entre produtividade e bem-estar.
+O enunciado da disciplina aponta um problema comum entre profissionais de tecnologia: o conhecimento técnico existe, porém falta rotina consistente para organizar demandas, priorizar o que importa, comunicar com clareza e preservar equilíbrio entre produtividade e bem-estar.
 
-A missão é construir um Sistema Operacional Pessoal (Personal Operating System, POS) que integre métodos de produtividade, planejamento, comunicação e acompanhamento. O trabalho deve usar ferramentas digitais (Notion, Trello, Google Agenda e similares) e Inteligência Artificial para automatizar, organizar e apoiar decisões.
+A missão proposta é montar um Sistema Operacional Pessoal (Personal Operating System, POS). Esse sistema deve reunir métodos de produtividade, planejamento, comunicação e acompanhamento, apoiado por ferramentas digitais (Notion, Trello, Google Agenda e afins) e por Inteligência Artificial para automatizar etapas, organizar informações e sugerir decisões.
 
-**PersonalOS** responde a esse enunciado na prática. Trata-se de um monorepo web e desktop que conecta Trello, Google Calendar, Notion e um operador de IA autenticado. O sistema oferece dashboard, matriz de Eisenhower, time blocking com limites de carga e tools de comunicação profissional.
+O **PersonalOS** é a resposta prática a esse enunciado. É um monorepo web (com shell desktop opcional) que integra Trello, Google Calendar, Notion e um operador de IA autenticado. Na interface há dashboard, matriz de Eisenhower, time blocking com limites de carga e ferramentas de comunicação profissional.
 
-Este documento cobre a parte teórica (1,5 pts) e documenta a parte prática (3,5 pts). O vídeo pitch (até 4 minutos, 2,0 pts) é entregável separado (YouTube, Loom ou Google Drive).
+Este documento cobre a parte teórica (1,5 pts) e registra a parte prática (3,5 pts). O vídeo pitch (até 4 minutos, 2,0 pts) é entregue à parte, em YouTube, Loom ou Google Drive.
 
 </div>
 
@@ -70,11 +70,11 @@ A rotina típica considerada neste sistema (profissional de tecnologia em contex
 | Conhecimento | Notas em Notion desconectadas do fluxo diário de execução |
 | Carga cognitiva | Troca constante entre ferramentas; falta de uma visão única do dia |
 
-O diagnóstico não aponta falta de aplicativos. O problema central é a falta de orquestração: métodos como Eisenhower e planejamento do dia existem na teoria, mas não estão aplicados de forma contínua na stack já usada.
+Não faltam aplicativos na rotina descrita. O que falta é orquestração: Eisenhower e o planejamento do dia existem como método, mas não entram de forma contínua na stack já adotada.
 
 ### 2.2 Principais desafios de produtividade
 
-Os pontos abaixo alinhados ao material da disciplina (*Gestão de Tempo: Tarefas, Compromissos e Produtividade*, Paulo Lisboa / Rocketseat) e ao enunciado:
+Os pontos abaixo alinham-se ao material da disciplina (*Gestão de Tempo: Tarefas, Compromissos e Produtividade*, Paulo Lisboa / Rocketseat) e ao enunciado:
 
 1. **Priorização frágil:** misturar urgente com importante concentra esforço no Quadrante I e abandona o Quadrante II (importante e não urgente).
 2. **Compromissos sem proteção de foco:** a agenda enche de reuniões; tarefas profundas competem pelo tempo restante.
@@ -109,10 +109,10 @@ Os pontos abaixo alinhados ao material da disciplina (*Gestão de Tempo: Tarefas
 
 ### 2.5 Como a IA apoia a organização
 
-No produto, a IA atua como copiloto cognitivo (conceito do módulo de comunicação), e não como agente autônomo sem restrições:
+No produto, a IA funciona como apoio à decisão (conceito de copiloto no módulo de comunicação), e não como agente autônomo sem restrições:
 
 - Classificação Eisenhower sugerida (`tasks_classify`): não altera o board em silêncio.
-- Proposta de dia (`planning_propose_day`): respeita preferências (timezone, janela 09–18, foco e pausas).
+- Proposta de dia (`planning_propose_day`): respeita preferências (timezone, janela 09-18, foco e pausas).
 - Criação de blocos de foco somente após confirmação; a partir de 3 blocos, gera `pending_ai_action` e exige `ai.confirmAction`.
 - Comunicação: reescrita profissional, resumo para o time, notas de reunião convertidas em rascunho de tarefas.
 - Notion: busca, leitura e criação de notas via tools.
@@ -126,7 +126,7 @@ Limites éticos aplicados: o system prompt exige proposta antes de ações em ma
 
 **Procrastinação.** Estratégias do material (identificar causas, priorizar, fatiar, planejar) aparecem na matriz Eisenhower visível, no filtro “Hoje/Agendadas”, na proposta de dia com teto de tarefas e rejeição do excedente, e no dashboard com contagem de atrasadas.
 
-**Saúde mental e bem-estar.** Preferências de horário de trabalho e pausas; planner que evita carga irrealista; analytics sem score punitivo de horas; narrativa do produto (“Foque no que importa”) alinhada a equilíbrio e sustentabilidade, e não a hiperprodutividade.
+**Saúde mental e bem-estar.** Preferências de horário de trabalho e pausas; planner que evita carga irrealista; analytics sem score punitivo de horas. A narrativa do produto (“Foque no que importa”) prioriza equilíbrio e sustentabilidade, em vez de hiperprodutividade.
 
 </div>
 
@@ -157,21 +157,21 @@ Mapeamento verificado em relação ao HEAD da branch `cursor/personalos-mvp-44d9
 | Planejamento semanal ou mensal | `planning_propose_day` e `planning_create_focus_blocks`; visão `/calendar`; KPIs em `/` e `/analytics` |
 | Gestão de compromissos | Google Calendar (login Google sincroniza Calendar; Connect explícito também); `calendar_list_events` |
 | Pelo menos 1 técnica de produtividade | Eisenhower (`tasks_classify` e UI) e time blocking (também Kanban/Gantt em `/tasks`) |
-| Pelo menos 1 ferramenta digital | Trello (golden path); Calendar; Notion (tools e Connect); Gmail readonly |
+| Pelo menos 1 ferramenta digital | Trello (fluxo principal); Calendar; Notion (tools e Connect); Gmail readonly |
 | IA para automatizar, organizar ou planejar | `POST /api/ai` e `buildOperatorTools` em `@personal-os/capabilities` |
 | Dashboard de acompanhamento | Home `/` (`dashboard.getOverview`: pendentes, atrasadas, prioritárias, eventos) |
 | README | `README.md`, `README-ACADEMICO.md` e este documento |
 
 **Rotas autenticadas (`/_app`):** `/`, `/tasks`, `/calendar`, `/notes`, `/files`, `/analytics`, `/integrations`, `/settings`.
 
-### 3.3 Fluxo de uso (golden path)
+### 3.3 Fluxo principal de uso
 
 1. **Login / cadastro** em `/login` (UI ReUI auth-16).
 2. **Onboarding** (`/onboarding`): conectar Trello e Calendar (ou pular), timezone e horário de trabalho, intro do operador. Após OAuth, o passo de integrações é restaurado (`?step=integrations`).
 3. **Home `/`:** saudação, KPIs, painel Eisenhower, atalho ao operador.
 4. **Tarefas `/tasks`:** grade por quadrante (`do`, `schedule`, `delegate`, `eliminate`); boards Kanban (`TasksKanbanBoard`) e Gantt (`TasksGanttBoard`); nav com filtros Hoje, Agendadas e Completas.
 5. **Calendário `/calendar`:** eventos Google.
-6. **Operador:** “Classifique com Eisenhower”, “Proponha meu dia 09–18”, “Crie blocos após eu confirmar”.
+6. **Operador:** “Classifique com Eisenhower”, “Proponha meu dia 09-18”, “Crie blocos após eu confirmar”.
 7. **Arquivos `/files`:** PDF para texto; no desktop Tauri, pasta autorizada.
 8. **Integrações `/integrations`:** status conectado/desconectado; Claude/ChatGPT via API key; limpar preferência de modelo para roteamento Gemini.
 9. **Notes `/notes`:** ponte para uso do Notion via operador (UI stub).
@@ -258,7 +258,7 @@ AppShell (ReUI app-shell-18): Home `/`, Tasks (submenu com filtros), Calendar, N
 
 ## 4. Limitações e trabalho futuro
 
-Esta seção distingue o que já existe do que ainda é parcial ou em evolução. Não se inventam features não implementadas.
+Esta seção separa o que já está pronto do que ainda é parcial ou em evolução. Não se listam recursos que o código não implementa.
 
 | Item | Status |
 |------|--------|
@@ -370,7 +370,7 @@ BETTER AUTH. Documentação. Disponível em: https://www.better-auth.com. Acesso
 | Data | 30 de setembro de 2026 |
 | Prazo de referência | 30/09/2026, 23:00 (America/Sao_Paulo) |
 | Branch | `cursor/personalos-mvp-44d9` |
-| Versão do documento | 1.2 |
+| Versão do documento | 1.3 |
 
 Para regenerar após mudanças no produto:
 

@@ -1,4 +1,4 @@
-/* PersonalOS entrega PDF — Arial (Arimo metric-compatible) + ABNT page breaks */
+/* PersonalOS entrega PDF: Arial (Arimo metric-compatible) + quebras ABNT */
 
 @font-face {
   font-family: "Arial";
@@ -34,7 +34,6 @@
   --muted: #555555;
   --rule: #cccccc;
   --rule-strong: #111111;
-  --accent: #111111;
   --paper: #f7f7f7;
   --code-bg: #f4f4f4;
 }
@@ -51,8 +50,17 @@
   }
 }
 
-/* Folha de rosto: sem número de página */
-@page :first {
+/* Capa e folha de rosto: margens simétricas, sem número de página */
+@page capa {
+  size: A4;
+  margin: 2.5cm 2.5cm 2.5cm 2.5cm;
+  @bottom-center {
+    content: none;
+  }
+}
+
+@page folha-rosto {
+  size: A4;
   margin: 2.5cm 2.5cm 2.5cm 2.5cm;
   @bottom-center {
     content: none;
@@ -75,7 +83,7 @@ body {
   background: #fff;
 }
 
-/* Esconde bloco de título gerado pelo pandoc (evita duplicar capa) */
+/* Segurança: se o bloco do pandoc voltar a aparecer, não imprime */
 header#title-block-header {
   display: none !important;
 }
@@ -212,8 +220,9 @@ ol {
   margin: 0 0 0.85em;
 }
 
-/* ---- Folha de rosto (capa) ---- */
-.cover {
+/* ---- Capa e folha de rosto ---- */
+.capa {
+  page: capa;
   page-break-after: always;
   break-after: page;
   min-height: 230mm;
@@ -225,11 +234,25 @@ ol {
   padding: 6mm 2mm 4mm;
 }
 
-.cover-top {
+.folha-rosto {
+  page: folha-rosto;
+  page-break-after: always;
+  break-after: page;
+  min-height: 230mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: center;
+  box-sizing: border-box;
+  padding: 6mm 2mm 4mm;
+}
+
+.front-top {
   padding-top: 8mm;
 }
 
-.cover .institution {
+.capa .institution,
+.folha-rosto .institution {
   margin: 0 0 0.4em;
   font-family: Arial, sans-serif;
   font-size: 16pt;
@@ -240,7 +263,8 @@ ol {
   letter-spacing: 0.08em;
 }
 
-.cover .course {
+.capa .course,
+.folha-rosto .course {
   max-width: 28em;
   margin: 0.6em auto 0;
   font-family: Arial, sans-serif;
@@ -250,7 +274,8 @@ ol {
   color: var(--ink-soft);
 }
 
-.cover .module {
+.capa .module,
+.folha-rosto .module {
   margin: 0.35em auto 0;
   font-family: Arial, sans-serif;
   font-size: 11pt;
@@ -258,7 +283,7 @@ ol {
   color: var(--ink);
 }
 
-.cover-mid {
+.front-mid {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -266,7 +291,8 @@ ol {
   padding: 10mm 4mm;
 }
 
-.cover .author-name {
+.capa .author-name,
+.folha-rosto .author-name {
   margin: 0 0 12mm;
   font-family: Arial, sans-serif;
   font-size: 12pt;
@@ -275,7 +301,8 @@ ol {
   letter-spacing: 0.02em;
 }
 
-.cover h1 {
+.capa h1,
+.folha-rosto h1 {
   max-width: 18em;
   padding: 0;
   margin: 0 auto 0.7em;
@@ -288,7 +315,8 @@ ol {
   border: none;
 }
 
-.cover .subtitle {
+.capa .subtitle,
+.folha-rosto .subtitle {
   max-width: 32em;
   margin: 0 auto 10mm;
   font-family: Arial, sans-serif;
@@ -300,7 +328,7 @@ ol {
   text-align: center;
 }
 
-.cover .nature {
+.folha-rosto .nature {
   max-width: 30em;
   margin: 0 auto;
   font-family: Arial, sans-serif;
@@ -310,11 +338,11 @@ ol {
   text-align: center;
 }
 
-.cover-bottom {
+.front-bottom {
   padding-bottom: 6mm;
 }
 
-.cover .meta-block {
+.folha-rosto .meta-block {
   margin: 0 auto 8mm;
   font-family: Arial, sans-serif;
   font-size: 11pt;
@@ -323,11 +351,12 @@ ol {
   text-align: center;
 }
 
-.cover .meta-block .label {
+.folha-rosto .meta-block .label {
   font-weight: 700;
 }
 
-.cover .place-date {
+.capa .place-date,
+.folha-rosto .place-date {
   margin: 0;
   font-family: Arial, sans-serif;
   font-size: 11pt;

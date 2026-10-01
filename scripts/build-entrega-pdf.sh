@@ -36,16 +36,32 @@ if ! command -v weasyprint >/dev/null 2>&1 && ! python3 -c "import weasyprint" >
   exit 1
 fi
 
-# Folha de rosto limpa (sem título/data duplicados). UniFECAF em destaque.
-COVER="$OUT_DIR/.cover-fragment.html"
-cat > "$COVER" <<'EOF'
-<section class="cover" aria-label="Folha de rosto">
-  <div class="cover-top">
+# Capa e folha de rosto em páginas distintas (ABNT). Título e data uma vez em cada.
+FRONT_MATTER="$OUT_DIR/.front-matter.html"
+cat > "$FRONT_MATTER" <<'EOF'
+<section class="capa" aria-label="Capa">
+  <div class="front-top">
     <p class="institution">UniFECAF</p>
     <p class="course">Graduação Tecnológica em Inteligência Artificial e Automação Digital</p>
     <p class="module">Módulo: Produtividade e Gestão do Tempo</p>
   </div>
-  <div class="cover-mid">
+  <div class="front-mid">
+    <p class="author-name">João Henrique Benatti Coimbra</p>
+    <h1>PersonalOS - Documentação de Entrega</h1>
+    <p class="subtitle">Meu Sistema Operacional Pessoal: Utilizando IA para Gerenciar Tempo, Comunicação e Produtividade</p>
+  </div>
+  <div class="front-bottom">
+    <p class="place-date">30 de setembro de 2026</p>
+  </div>
+</section>
+
+<section class="folha-rosto" aria-label="Folha de rosto">
+  <div class="front-top">
+    <p class="institution">UniFECAF</p>
+    <p class="course">Graduação Tecnológica em Inteligência Artificial e Automação Digital</p>
+    <p class="module">Módulo: Produtividade e Gestão do Tempo</p>
+  </div>
+  <div class="front-mid">
     <p class="author-name">João Henrique Benatti Coimbra</p>
     <h1>PersonalOS - Documentação de Entrega</h1>
     <p class="subtitle">Meu Sistema Operacional Pessoal: Utilizando IA para Gerenciar Tempo, Comunicação e Produtividade</p>
@@ -55,7 +71,7 @@ cat > "$COVER" <<'EOF'
       Operacional Pessoal (PersonalOS).
     </p>
   </div>
-  <div class="cover-bottom">
+  <div class="front-bottom">
     <div class="meta-block">
       <div><span class="label">RA:</span> 188635</div>
     </div>
@@ -71,8 +87,26 @@ pandoc "$SRC" \
   --metadata title="PersonalOS - Documentação de Entrega" \
   --metadata author="João Henrique Benatti Coimbra" \
   --css "$CSS" \
-  --include-before-body="$COVER" \
+  --include-before-body="$FRONT_MATTER" \
   -o "$HTML"
+
+# Remove o bloco de título do pandoc (evita título/data duplicados na impressão).
+python3 - "$HTML" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+html_path = Path(sys.argv[1])
+text = html_path.read_text(encoding="utf-8")
+text = re.sub(
+    r'<header id="title-block-header">.*?</header>\s*',
+    "",
+    text,
+    count=1,
+    flags=re.DOTALL,
+)
+html_path.write_text(text, encoding="utf-8")
+PY
 
 if command -v weasyprint >/dev/null 2>&1; then
   weasyprint "$HTML" "$PDF"
@@ -90,9 +124,10 @@ fi
 
 cp -f "$PDF" "$ARTIFACT_DIR/PersonalOS-Documentacao-Entrega.pdf"
 cp -f "$SRC" "$ARTIFACT_DIR/PersonalOS-Documentacao-Entrega.md"
-rm -f "$COVER"
+rm -f "$FRONT_MATTER"
 
 echo "PDF: $PDF"
 echo "Artifact: $ARTIFACT_DIR/PersonalOS-Documentacao-Entrega.pdf"
 wc -c "$PDF"
 pdfinfo "$PDF" 2>/dev/null || true
+pdffonts "$PDF" 2>/dev/null | head -20 || true
