@@ -8,6 +8,7 @@ import {
   createBoardLabel,
   createCard,
   createEvent,
+  deleteEvent,
   getIntegrationToken,
   type IntegrationProvider,
   listBoardCards,
@@ -15,12 +16,15 @@ import {
   listBoardLists,
   listEvents,
   listMemberBoards,
+  notionAppendBlocks,
   notionCreatePage,
   notionGetPage,
   notionSearch,
   updateCard,
+  updateEvent,
 } from "@personal-os/integrations";
 import { getValidGoogleCalendarToken } from "@personal-os/integrations/google-refresh";
+import { markdownToNotionBlocks } from "@personal-os/integrations/notion-blocks";
 import { and, eq } from "drizzle-orm";
 
 import {
@@ -29,7 +33,12 @@ import {
   type EisenhowerQuadrant,
   quadrantLabel,
 } from "./eisenhower";
-import { formatCapabilityError, isCalendarDisabledError } from "./errors";
+import {
+  capabilityErrorCode,
+  formatCapabilityError,
+  isCalendarDisabledError,
+  isCalendarScopeError,
+} from "./errors";
 import { planDay } from "./planning";
 
 export interface CapabilityEnv {
@@ -383,6 +392,13 @@ async function requireGoogleCalendarToken(env: CapabilityEnv): Promise<string> {
   return token;
 }
 
+function rethrowCalendarError(error: unknown): never {
+  if (isCalendarScopeError(error) || isCalendarDisabledError(error)) {
+    throw new Error(formatCapabilityError(error), { cause: error });
+  }
+  throw error;
+}
+
 export async function listCalendarEvents(
   env: CapabilityEnv,
   input: { timeMin: string; timeMax: string }
@@ -391,10 +407,58 @@ export async function listCalendarEvents(
   try {
     return await listEvents(token, input);
   } catch (error) {
-    if (isCalendarDisabledError(error)) {
-      throw new Error(formatCapabilityError(error), { cause: error });
-    }
-    throw error;
+    rethrowCalendarError(error);
+  }
+}
+
+export async function createCalendarEvent(
+  env: CapabilityEnv,
+  input: {
+    calendarId?: string;
+    summary: string;
+    description?: string;
+    start: string;
+    end: string;
+    timeZone?: string;
+  }
+) {
+  const token = await requireGoogleCalendarToken(env);
+  try {
+    return await createEvent(token, input);
+  } catch (error) {
+    rethrowCalendarError(error);
+  }
+}
+
+export async function updateCalendarEvent(
+  env: CapabilityEnv,
+  input: {
+    calendarId?: string;
+    eventId: string;
+    summary?: string;
+    description?: string;
+    start?: string;
+    end?: string;
+    timeZone?: string;
+  }
+) {
+  const token = await requireGoogleCalendarToken(env);
+  try {
+    return await updateEvent(token, input);
+  } catch (error) {
+    rethrowCalendarError(error);
+  }
+}
+
+export async function deleteCalendarEvent(
+  env: CapabilityEnv,
+  input: { calendarId?: string; eventId: string }
+) {
+  const token = await requireGoogleCalendarToken(env);
+  try {
+    return await deleteEvent(token, input);
+  } catch (error) {
+    rethrowCalendarError(error);
   }
 }
 
@@ -492,9 +556,7 @@ export async function createFocusBlocksWithPolicy(
     return { created, pending: false };
   } catch (error) {
     return {
-      code: isCalendarDisabledError(error)
-        ? "calendar_disabled"
-        : "calendar_error",
+      code: capabilityErrorCode(error),
       created: [],
       error: formatCapabilityError(error),
       ok: false as const,
@@ -628,10 +690,28 @@ export async function readKnowledgePage(env: CapabilityEnv, pageId: string) {
 
 export async function createKnowledgeNote(
   env: CapabilityEnv,
-  input: { title: string; parentDatabaseId?: string; content?: string }
+  input: {
+    title: string;
+    parentDatabaseId?: string;
+    parentPageId?: string;
+    content?: string;
+  }
 ) {
   const token = await requireToken(env, "notion");
   return notionCreatePage(token, input);
+}
+
+export async function appendKnowledgeContent(
+  env: CapabilityEnv,
+  input: { pageId: string; content: string }
+) {
+  const token = await requireToken(env, "notion");
+  const blocks = markdownToNotionBlocks(input.content);
+  if (blocks.length === 0) {
+    return { appended: 0, pageId: input.pageId };
+  }
+  const result = await notionAppendBlocks(token, input.pageId, blocks);
+  return { ...result, pageId: input.pageId };
 }
 
 export async function updateTrelloCard(

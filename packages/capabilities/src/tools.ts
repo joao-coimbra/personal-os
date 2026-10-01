@@ -4,15 +4,19 @@ import { z } from "zod";
 import { softToolResult } from "./errors";
 import type { CapabilityEnv } from "./services";
 import {
+  appendKnowledgeContent,
   classifyTasks,
+  createCalendarEvent,
   createFocusBlocksWithPolicy,
   createKnowledgeNote,
   createTask,
+  deleteCalendarEvent,
   listCalendarEvents,
   listTasks,
   proposeDayPlan,
   readKnowledgePage,
   searchKnowledge,
+  updateCalendarEvent,
 } from "./services";
 
 const BULLET_PREFIX_RE = /^[-*]\s*/;
@@ -20,6 +24,52 @@ const SENTENCE_SPLIT_RE = /[.!?\n]+/;
 
 export function buildOperatorTools(env: CapabilityEnv) {
   return {
+    calendar_create_event: tool({
+      description:
+        "Create a Google Calendar event (write). Pass ISO start/end datetimes. Use after the user asks to schedule something. Soft-fails with ok:false if Calendar API is disabled or write scope is missing — continue without aborting.",
+      execute: async ({
+        calendarId,
+        description,
+        end,
+        start,
+        summary,
+        timeZone,
+      }) =>
+        softToolResult(() =>
+          createCalendarEvent(env, {
+            calendarId,
+            description,
+            end,
+            start,
+            summary,
+            timeZone,
+          })
+        ),
+      inputSchema: z.object({
+        calendarId: z
+          .string()
+          .optional()
+          .describe("Calendar id; defaults to primary"),
+        description: z.string().optional().describe("Event description/body"),
+        end: z.string().describe("ISO datetime end"),
+        start: z.string().describe("ISO datetime start"),
+        summary: z.string().describe("Event title"),
+        timeZone: z
+          .string()
+          .optional()
+          .describe("IANA timezone, e.g. America/Sao_Paulo"),
+      }),
+    }),
+    calendar_delete_event: tool({
+      description:
+        "Delete a Google Calendar event by id. Soft-fails with ok:false if scope/API missing.",
+      execute: async ({ calendarId, eventId }) =>
+        softToolResult(() => deleteCalendarEvent(env, { calendarId, eventId })),
+      inputSchema: z.object({
+        calendarId: z.string().optional(),
+        eventId: z.string().describe("Google Calendar event id"),
+      }),
+    }),
     calendar_list_events: tool({
       description:
         "List Google Calendar events in a time range for the authenticated user. Returns ok:false if Calendar API is disabled (403) — continue without events.",
@@ -28,6 +78,39 @@ export function buildOperatorTools(env: CapabilityEnv) {
       inputSchema: z.object({
         timeMax: z.string().describe("ISO datetime end"),
         timeMin: z.string().describe("ISO datetime start"),
+      }),
+    }),
+    calendar_update_event: tool({
+      description:
+        "Update an existing Google Calendar event (title, description, start/end). Soft-fails with ok:false if write scope is missing.",
+      execute: async ({
+        calendarId,
+        description,
+        end,
+        eventId,
+        start,
+        summary,
+        timeZone,
+      }) =>
+        softToolResult(() =>
+          updateCalendarEvent(env, {
+            calendarId,
+            description,
+            end,
+            eventId,
+            start,
+            summary,
+            timeZone,
+          })
+        ),
+      inputSchema: z.object({
+        calendarId: z.string().optional(),
+        description: z.string().optional(),
+        end: z.string().optional().describe("ISO datetime end"),
+        eventId: z.string().describe("Google Calendar event id"),
+        start: z.string().optional().describe("ISO datetime start"),
+        summary: z.string().optional().describe("Event title"),
+        timeZone: z.string().optional(),
       }),
     }),
     comm_meeting_notes_to_tasks: tool({
@@ -83,14 +166,43 @@ export function buildOperatorTools(env: CapabilityEnv) {
         maxBullets: z.number().min(1).max(10).optional(),
       }),
     }),
+    knowledge_append_content: tool({
+      description:
+        "Append markdown content as Notion blocks (paragraphs, headings, bullets, code) to an existing page. Use when the page already exists and you need more body content.",
+      execute: async ({ content, pageId }) =>
+        softToolResult(() => appendKnowledgeContent(env, { content, pageId })),
+      inputSchema: z.object({
+        content: z
+          .string()
+          .min(1)
+          .describe("Markdown body to append as Notion blocks"),
+        pageId: z.string().describe("Notion page id"),
+      }),
+    }),
     knowledge_create_note: tool({
-      description: "Create a Notion page/note for the authenticated user.",
-      execute: async ({ parentDatabaseId, title }) =>
+      description:
+        "Create a Notion page WITH body content. Always pass content (markdown) when the user asked for notes/text — not title alone. Supports headings (# ## ###), bullets, numbered lists, code fences, and paragraphs. Optionally nest under parentPageId or parentDatabaseId.",
+      execute: async ({ content, parentDatabaseId, parentPageId, title }) =>
         softToolResult(() =>
-          createKnowledgeNote(env, { parentDatabaseId, title })
+          createKnowledgeNote(env, {
+            content,
+            parentDatabaseId,
+            parentPageId,
+            title,
+          })
         ),
       inputSchema: z.object({
+        content: z
+          .string()
+          .optional()
+          .describe(
+            "Markdown body for the page. Prefer including this whenever the user provided text/notes."
+          ),
         parentDatabaseId: z.string().optional(),
+        parentPageId: z
+          .string()
+          .optional()
+          .describe("Parent Notion page id when not using a database"),
         title: z.string(),
       }),
     }),
@@ -181,6 +293,10 @@ Use connected PersonalOS capabilities when they can reliably answer the user's r
 Do not claim an action was completed unless the corresponding tool confirmed success.
 
 When a tool returns { ok: false, error, code }, explain the limitation clearly to the user and continue with whatever parts of the request you CAN fulfill (e.g. create a Notion note even if Google Calendar returns 403). Never abort the whole reply with a raw "network error".
+
+You CAN write:
+- Notion: knowledge_create_note accepts markdown content (body blocks). Prefer passing content whenever the user asked for notes/text — never create a title-only page and apologize that Notion needs "additional blocks". Use knowledge_append_content to add more blocks to an existing page.
+- Google Calendar: calendar_create_event, calendar_update_event, and calendar_delete_event write to the calendar (same write scope as planning_create_focus_blocks). Prefer these when the user asks to schedule, move, or cancel a specific event.
 
 For bulk or high-impact changes (reorganizing many tasks or an entire week), first analyze and present a proposal. Wait for explicit user confirmation before creating many calendar events or moving many cards.
 

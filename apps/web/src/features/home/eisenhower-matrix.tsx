@@ -79,13 +79,7 @@ export function EisenhowerMatrix({
         </div>
       </div>
 
-      <div className="relative">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 -left-1 hidden -translate-y-1/2 -rotate-90 text-[10px] text-muted-foreground uppercase tracking-[0.2em] md:block"
-        >
-          Importante
-        </div>
+      <div className="space-y-2">
         <div className="grid gap-3 sm:grid-cols-2">
           {QUADRANTS.map((quadrant) => {
             const items = byQuadrant.get(quadrant.id) ?? [];
@@ -134,7 +128,7 @@ export function EisenhowerMatrix({
         </div>
         <p
           aria-hidden="true"
-          className="mt-2 hidden text-center text-[10px] text-muted-foreground uppercase tracking-[0.2em] md:block"
+          className="hidden text-center text-[10px] text-muted-foreground/50 uppercase tracking-[0.2em] md:block"
         >
           Urgente →
         </p>
